@@ -10,6 +10,7 @@
     "vscode": {
       "extensions": [
         "ms-mssql.mssql",
+        "ms-ossdata.vscode-pgsql",
         "ms-azuretools.vscode-docker",
         "redhat.vscode-yaml",
         "ms-vscode.makefile-tools",
@@ -40,7 +41,26 @@
         "files.watcherExclude": {
           "**/target/**": true,
           "**/node_modules/**": true
-        }
+        },
+        "files.associations": {
+          "*.sql": "sql",
+          "*.pgsql": "pgsql"
+        },
+        "[sql]": {
+          "editor.defaultFormatter": "ms-mssql.mssql"
+        },
+        "[pgsql]": {
+          "editor.defaultFormatter": "ms-ossdata.vscode-pgsql"
+        },
+        "mssql.format.alignColumnDefinitionsInColumns": true,
+        "mssql.format.datatypeCasing": "uppercase",
+        "mssql.format.keywordCasing": "uppercase",
+        "mssql.format.placeCommasBeforeNextStatement": false,
+        "mssql.format.placeSelectStatementReferencesOnNewLine": false,
+        "editor.fontSize": 14,
+        "terminal.integrated.fontSize": 14,
+        "debug.console.fontSize": 14,
+        "markdown.preview.fontSize": 14
       }
     }
   },

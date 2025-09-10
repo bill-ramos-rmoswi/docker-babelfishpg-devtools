@@ -1,0 +1,101 @@
+# Environment and secrets
+.env
+.envrc
+*.env
+*.envrc
+.env.*
+.envrc.*
+
+# GitHub tokens and credentials
+*github*token*
+*personal*access*token*
+*ghp_*
+*gho_*
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# SSH keys (but allow .ssh directory config)
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+known_hosts
+
+# AWS credentials
+.aws/
+aws_access_key*
+aws_secret*
+credentials
+
+# Azure credentials
+*.publishsettings
+*.azureauth
+
+# API keys and tokens
+*api_key*
+*api_token*
+*auth_token*
+*access_token*
+*secret_key*
+
+# Local configuration with potential secrets
+local.settings.json
+appsettings.Development.json
+appsettings.local.json
+
+# Database dumps and backups (may contain sensitive data)
+*.dump
+*.sql.gz
+*.backup
+bbf_backups/
+
+# IDE and editor files
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Build outputs
+build/
+dist/
+out/
+target/
+*.log
+*.pid
+*.seed
+*.pid.lock
+
+# Docker volumes and temp files
+docker-babelfishpg-devtools_devcontainer*/
+.devcontainer/.env
+.devcontainer/.envrc
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+*.cache
+
+# Node modules (if any JS tools are added)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python (if any Python tools are added)
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+ENV/
+
+# Database secrets are acceptable in scripts as noted
+# pg_env.sh is intentionally tracked with default dev credentials
