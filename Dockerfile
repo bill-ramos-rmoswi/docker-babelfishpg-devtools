@@ -20,7 +20,8 @@ RUN apt update && apt install -y --no-install-recommends\
 	curl openjdk-21-jre openssl\
 	g++ libssl-dev python-dev-is-python3 libpq-dev\
 	pkg-config libutfcpp-dev\
-	gnupg unixodbc-dev net-tools unzip wget
+	gnupg unixodbc-dev net-tools unzip wget\
+	postgresql-client postgresql-client-common postgresql-common git
 
 # Download babelfish sources
 WORKDIR /workplace
@@ -111,36 +112,103 @@ RUN make -j ${JOBS} && make PG_CONFIG=${PG_CONFIG} install
 WORKDIR ${PG_SRC}/contrib/babelfishpg_tsql
 RUN make -j ${JOBS} && make PG_CONFIG=${PG_CONFIG} install
 
+# Build and install BabelfishDump utilities
+WORKDIR /workplace
+
+# Clone the postgresql_modified_for_babelfish repository
+RUN git clone https://github.com/babelfish-for-postgresql/postgresql_modified_for_babelfish.git
+WORKDIR /workplace/postgresql_modified_for_babelfish
+# Checkout the same version as Babelfish
+RUN git checkout ${BABELFISH_TAG}
+
+# Install additional build dependencies for BabelfishDump
+RUN apt-get update && apt-get install -y \
+    rpm \
+
+	liblz4-dev \
+    libicu-dev \
+    libxml2-dev \
+    libssl-dev \
+    uuid-dev \
+    libkrb5-dev \
+    libpam-dev \
+    alien \
+    && rm -rf /var/lib/apt/lists/*
+
+# Build BabelfishDump RPM
+RUN make rpm NODEPS=1
+
+# Install the built RPM using alien (converts and installs RPM to DEB)
+RUN cd build && \
+    alien -i BabelfishDump*.rpm && \
+    rm -f *.rpm
+
 # Run stage
 FROM base AS runner
 ENV DEBIAN_FRONTEND=noninteractive
+ENV LC_ALL=C
+ENV LANG=C
+ENV LANGUAGE=C
 ENV BABELFISH_HOME=/opt/babelfish
 ENV POSTGRES_USER_HOME=/var/lib/babelfish
 
-# Copy binaries to run stage
+# Install dos2unix first
+RUN apt-get update && apt-get install -y dos2unix && rm -rf /var/lib/apt/lists/*
+
+# Copy binaries and scripts to run stage
 WORKDIR ${BABELFISH_HOME}
 COPY --from=builder ${BABELFISH_HOME} .
+COPY --from=builder /usr/bin/bbf_dump /usr/bin/
+COPY --from=builder /usr/bin/bbf_dumpall /usr/bin/
+
+# Copy and prepare scripts
+COPY backup_babelfish.sh restore_babelfish.sh pg_env.sh /tmp/
+RUN dos2unix /tmp/backup_babelfish.sh /tmp/restore_babelfish.sh /tmp/pg_env.sh && \
+    mv /tmp/backup_babelfish.sh /tmp/restore_babelfish.sh /usr/bin/ && \
+    mv /tmp/pg_env.sh /etc/profile.d/ && \
+    chmod +x /usr/bin/backup_babelfish.sh /usr/bin/restore_babelfish.sh /etc/profile.d/pg_env.sh
+
+# Create backup directory structure
+RUN mkdir -p /var/lib/babelfish/bbf_backups
 
 # Install runtime dependencies
 RUN apt update && apt install -y --no-install-recommends\
 	libssl3 openssl libldap-2.5-0 libxml2 libpam0g uuid libossp-uuid16\
-	libxslt1.1 libicu70 libpq5 unixodbc
+	libxslt1.1 libicu70 libpq5 unixodbc sudo postgresql-client\
+	postgresql-client-common postgresql-common git build-essential alien\
+	dos2unix
+
+# BabelfishDump utilities are already installed from the builder stage
 
 # Enable data volume
 ENV BABELFISH_DATA=${POSTGRES_USER_HOME}/data
 RUN mkdir -p ${BABELFISH_DATA}
 VOLUME ${BABELFISH_DATA}
 
-# Create postgres user
-RUN adduser postgres --home ${POSTGRES_USER_HOME}
-RUN chown -R postgres ${BABELFISH_HOME}
-RUN chown -R postgres ${POSTGRES_USER_HOME}
+# Install and configure SSH
+RUN apt-get update && apt-get install -y openssh-server
+RUN mkdir /var/run/sshd
+RUN echo 'root:postgres' | chpasswd
+RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+RUN sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd
+
+# Set up postgres user directories
+RUN mkdir -p ${POSTGRES_USER_HOME} && \
+    chown -R postgres:postgres ${BABELFISH_HOME} && \
+    chown -R postgres:postgres ${POSTGRES_USER_HOME}
+RUN echo "postgres ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+# Expose SSH port
+EXPOSE 22
 
 # Change to postgres user
 USER postgres
 
 # Expose ports
-EXPOSE 1433 5432
+# TDS (SQL Server protocol) port
+EXPOSE 1433
+# PostgreSQL native port
+EXPOSE 5432
 
 # Set entry point
 COPY start.sh /
