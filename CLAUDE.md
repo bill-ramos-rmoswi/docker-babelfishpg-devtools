@@ -64,3 +64,6 @@ For versions before `BABEL_5_2_0__PG_17_5`, use the `before-BABEL_5_2_0__PG_17_5
 - Password: `12345678`
 - Database: `babelfish_db`
 - Migration mode: `single-db`
+- Work iteratively on each section to make sure each feature works in the docker container using a branch to track changes and then when it works, create a pull request for me to review
+- Use GIT issues for the repo to capture the project plan and tie each feature to the issue for the feature branches
+- Add comprehensive plans to the appropriate Github issue for the feature

@@ -6,7 +6,6 @@
   "forwardPorts": [3341, 2345, 2223],
   "postCreateCommand": "echo 'Welcome to Babelfish DevTools Container'",
   "postStartCommand": "/start.sh",
-  "remoteUser": "postgres",
   "customizations": {
     "vscode": {
       "extensions": [
