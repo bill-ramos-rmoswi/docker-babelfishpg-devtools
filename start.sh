@@ -7,6 +7,13 @@ BABELFISH_BIN=${BABELFISH_HOME}/bin
 export PATH=$PATH:${BABELFISH_BIN}
 export PGDATA=${BABELFISH_DATA}
 
+# Fix permissions on data directory (running as root initially)
+if [ "$(id -u)" = "0" ]; then
+    echo "Fixing permissions on data directory..."
+    chown -R postgres:postgres ${BABELFISH_DATA}
+    chmod 700 ${BABELFISH_DATA}
+fi
+
 # TODO - Add BabelfishDump verification when it's working
 # Verify PostgreSQL tools are available
 if ! command -v psql >/dev/null 2>&1; then
@@ -33,7 +40,9 @@ done
 
 # Initialize database cluster if it does not exist
 if [ ! -f ${BABELFISH_DATA}/postgresql.conf ]; then
-	${BABELFISH_BIN}/initdb -D ${BABELFISH_DATA}/ -E "UTF8"
+	echo "Initializing database cluster..."
+	# Run initdb as postgres user
+	su - postgres -c "${BABELFISH_BIN}/initdb -D ${BABELFISH_DATA}/ -E 'UTF8'"
 	cat <<- EOF >> ${BABELFISH_DATA}/pg_hba.conf
 		# Allow all connections
 		hostssl	all		all		0.0.0.0/0		md5
@@ -81,24 +90,53 @@ if [ ! -f ${BABELFISH_DATA}/postgresql.conf ]; then
 		-keyout server.key -subj "/CN=localhost"
 	chmod og-rwx server.key
 	chown postgres:postgres server.key server.crt
-	${BABELFISH_BIN}/pg_ctl -D ${BABELFISH_DATA}/ start
-	${BABELFISH_BIN}/psql -c "CREATE USER ${USERNAME} WITH SUPERUSER CREATEDB CREATEROLE PASSWORD '${PASSWORD}' INHERIT;" \
-		-c "DROP DATABASE IF EXISTS ${DATABASE};" \
-		-c "CREATE DATABASE ${DATABASE} OWNER ${USERNAME};" \
-		-c "\c ${DATABASE}" \
-		-c "CREATE EXTENSION IF NOT EXISTS \"babelfishpg_tds\" CASCADE;" \
-		-c "GRANT ALL ON SCHEMA sys to ${USERNAME};" \
-		-c "ALTER USER ${USERNAME} CREATEDB;" \
-		-c "ALTER SYSTEM SET babelfishpg_tsql.database_name = '${DATABASE}';" \
-		-c "SELECT pg_reload_conf();" \
-		-c "ALTER DATABASE ${DATABASE} SET babelfishpg_tsql.migration_mode = 'multi-db';" \
-		-c "SELECT pg_reload_conf();" \
-		-c "CALL SYS.INITIALIZE_BABELFISH('${USERNAME}');"
-	${BABELFISH_BIN}/pg_ctl -D ${BABELFISH_DATA}/ stop
+	# Start PostgreSQL as postgres user
+	su - postgres -c "${BABELFISH_BIN}/pg_ctl -D ${BABELFISH_DATA}/ start"
+	# Wait for PostgreSQL to be ready
+	echo "Waiting for PostgreSQL to be ready..."
+	for i in $(seq 1 30); do
+		if su - postgres -c "${BABELFISH_BIN}/pg_isready -U postgres" >/dev/null 2>&1; then
+			echo "PostgreSQL is ready!"
+			break
+		fi
+		echo "Waiting... ($i/30)"
+		sleep 1
+	done
+	# Run initialization commands as postgres user
+	echo "Creating babelfish_admin user and initializing Babelfish..."
+	su - postgres -c "${BABELFISH_BIN}/psql -U postgres -d postgres <<EOF
+CREATE USER ${USERNAME} WITH SUPERUSER CREATEDB CREATEROLE PASSWORD '${PASSWORD}' INHERIT;
+DROP DATABASE IF EXISTS ${DATABASE};
+CREATE DATABASE ${DATABASE} OWNER ${USERNAME};
+\c ${DATABASE}
+CREATE EXTENSION IF NOT EXISTS \"babelfishpg_tds\" CASCADE;
+GRANT ALL ON SCHEMA sys to ${USERNAME};
+ALTER USER ${USERNAME} CREATEDB;
+ALTER SYSTEM SET babelfishpg_tsql.database_name = '${DATABASE}';
+SELECT pg_reload_conf();
+ALTER DATABASE ${DATABASE} SET babelfishpg_tsql.migration_mode = 'multi-db';
+SELECT pg_reload_conf();
+CALL SYS.INITIALIZE_BABELFISH('${USERNAME}');
+EOF"
+	echo "Babelfish initialization complete!"
+	su - postgres -c "${BABELFISH_BIN}/pg_ctl -D ${BABELFISH_DATA}/ stop"
+else
+	echo "Database already initialized, skipping initialization..."
 fi
 
-# Start SSH daemon in the background
-sudo /usr/sbin/sshd
+# Start SSH daemon in the background (if running as root)
+if [ "$(id -u)" = "0" ]; then
+    /usr/sbin/sshd
+fi
 
-# Start postgres engine
-exec ${BABELFISH_BIN}/postgres -D ${BABELFISH_DATA}/ -i
+# Start postgres engine as postgres user
+echo "Starting PostgreSQL/Babelfish server..."
+echo "  User: ${USERNAME}"
+echo "  Database: ${DATABASE}"
+echo "  TDS Port: 1433"
+echo "  PostgreSQL Port: 5432"
+if [ "$(id -u)" = "0" ]; then
+    exec su - postgres -c "${BABELFISH_BIN}/postgres -D ${BABELFISH_DATA}/ -i"
+else
+    exec ${BABELFISH_BIN}/postgres -D ${BABELFISH_DATA}/ -i
+fi

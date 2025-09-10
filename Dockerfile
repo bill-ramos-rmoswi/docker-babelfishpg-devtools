@@ -201,8 +201,8 @@ RUN echo "postgres ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 # Expose SSH port
 EXPOSE 22
 
-# Change to postgres user
-USER postgres
+# Run as root to handle permissions, start.sh will switch to postgres
+# USER postgres (commented out - container needs to start as root)
 
 # Expose ports
 # TDS (SQL Server protocol) port

@@ -1,0 +1,47 @@
+services:
+  babelfish:
+    build: 
+      context: ..
+      dockerfile: Dockerfile
+    volumes:
+      # Mount workspace
+      - ..:/workspace:cached
+      # Persist Babelfish data
+      - babelfish-data:/var/lib/babelfish/data
+      # Persist backup directory
+      - babelfish-backups:/var/lib/babelfish/bbf_backups
+    environment:
+      # PostgreSQL/Babelfish connection settings
+      - PGHOST=localhost
+      - PGPORT=5432
+      - PGDATABASE=babelfish_db
+      - PGUSER=babelfish_admin
+      - PGPASSWORD=secret_password
+      # Babelfish TDS settings
+      - BABELFISH_TDS_PORT=1433
+      # Locale settings
+      - LC_ALL=C
+      - LANG=C
+      - LANGUAGE=C
+    ports:
+      # Map container ports to host ports to avoid conflicts
+      - "3341:1433"  # Babelfish TDS (SQL Server protocol) - host:container
+      - "2345:5432"  # PostgreSQL native - host:container
+      - "2223:22"    # SSH - host:container
+    networks:
+      - babelfish-network
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
+    command: /start.sh
+
+volumes:
+  babelfish-data:
+    driver: local
+  babelfish-backups:
+    driver: local
+
+networks:
+  babelfish-network:
+    driver: bridge
