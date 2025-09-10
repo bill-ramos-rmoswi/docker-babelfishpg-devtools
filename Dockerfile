@@ -176,9 +176,19 @@ RUN apt update && apt install -y --no-install-recommends\
 	libssl3 openssl libldap-2.5-0 libxml2 libpam0g uuid libossp-uuid16\
 	libxslt1.1 libicu70 libpq5 unixodbc sudo postgresql-client\
 	postgresql-client-common postgresql-common git build-essential alien\
-	dos2unix
+	dos2unix curl ca-certificates gnupg
 
 # BabelfishDump utilities are already installed from the builder stage
+
+# Install Node.js 20.x and npm for Claude CLI
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    npm install -g npm@latest
+
+# Install Claude CLI for AI-assisted development
+# Using local installation to avoid permission issues
+RUN npm install -g @anthropic-ai/claude-code && \
+    claude migrate-installer || true
 
 # Enable data volume
 ENV BABELFISH_DATA=${POSTGRES_USER_HOME}/data
@@ -197,6 +207,12 @@ RUN mkdir -p ${POSTGRES_USER_HOME} && \
     chown -R postgres:postgres ${BABELFISH_HOME} && \
     chown -R postgres:postgres ${POSTGRES_USER_HOME}
 RUN echo "postgres ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+# Ensure Claude CLI is accessible to postgres user
+RUN if [ -d /root/.local/share/claude ]; then \
+        cp -r /root/.local/share/claude /usr/local/share/claude && \
+        chmod -R 755 /usr/local/share/claude; \
+    fi
 
 # Expose SSH port
 EXPOSE 22

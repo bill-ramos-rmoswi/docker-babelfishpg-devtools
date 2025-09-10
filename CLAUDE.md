@@ -17,6 +17,8 @@ The project includes VS Code DevContainer configuration for consistent developme
 1. Open repository in VS Code/Cursor
 2. Press F1 → "Dev Containers: Open Folder in Container"
 3. Wait for build (first time: ~30-60 minutes due to compilation)
+4. Claude CLI is pre-installed - run 'claude' to start AI-assisted development
+5. Use '/summary' in Claude to load this CLAUDE.md context
 ```
 
 ### DevContainer Architecture
@@ -179,6 +181,7 @@ psql -U babelfish_admin -d babelfish_db -c "SELECT name FROM sys.databases"
 - ✅ Security improvements (.gitignore)
 
 ### In Progress
+- 🔄 Claude CLI integration (Issue #15)
 - 🔄 Dockerfile multi-stage optimization (Issue #1)
 - 🔄 SSH server configuration (Issue #3)
 

@@ -72,6 +72,14 @@ ssh -p 2223 postgres@localhost
 4. Extensions are pre-configured
 
 ### For Claude Code Users:
+
+#### Inside DevContainer:
+1. Claude CLI is pre-installed and available
+2. Run `claude` to start Claude Code session
+3. Use `/summary` to load CLAUDE.md context
+4. All development happens within the container environment
+
+#### From Host (WSL/Windows):
 1. Continue editing from your WSL/host environment
 2. Files at `/mnt/c/Users/rmosw/source/bill-ramos-rmoswi/docker-babelfishpg-devtools/`
 3. Changes reflect immediately in the container
@@ -197,8 +205,17 @@ psql -h localhost -p 2345 -U babelfish_admin
 - **System changes are temporary** unless added to Dockerfile or scripts
 - **Port mappings** allow access from both inside and outside the container
 
-## Pre-installed VS Code Extensions
+## Pre-installed Development Tools
 
+### Command Line Tools
+- **Claude CLI** - AI-assisted development with `claude` command
+- **GitHub CLI** - GitHub operations with `gh` command
+- **PostgreSQL client tools** - `psql`, `pg_dump`, etc.
+- **BabelfishDump utilities** - `bbf_dump`, `bbf_dumpall`
+- **Node.js 20.x and npm** - JavaScript runtime and package manager
+- **Git** - Version control
+
+### VS Code Extensions
 - **ms-mssql.mssql** - SQL Server connections and T-SQL IntelliSense
 - **ms-azuretools.vscode-docker** - Docker management
 - **redhat.vscode-yaml** - YAML syntax support

@@ -1,107 +1,236 @@
-# docker-babelfishpg
-![Docker Image Version (latest semver)](https://img.shields.io/docker/v/jonathanpotts/babelfishpg) ![Docker Image Size with architecture (latest by date/latest semver)](https://img.shields.io/docker/image-size/jonathanpotts/babelfishpg) ![Docker Pulls](https://img.shields.io/docker/pulls/jonathanpotts/babelfishpg) ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/jonathanpotts/docker-babelfishpg/docker-image.yml) ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/jonathanpotts/docker-babelfishpg/babelfish-updates.yml?label=updates)
+# Babelfish PostgreSQL DevTools
 
-[Docker](https://www.docker.com/) image for [Babelfish for PostgreSQL](https://babelfishpg.org/).
+Enhanced Docker image for [Babelfish for PostgreSQL](https://babelfishpg.org/) development with integrated DevContainer support, development tools, and AI-assisted coding.
 
-Babelfish for PostgreSQL is a collection of [extensions](https://github.com/babelfish-for-postgresql/babelfish_extensions) for [PostgreSQL](https://www.postgresql.org/) that enable it to use the [Tabular Data Stream (TDS) protocol](https://docs.microsoft.com/openspecs/windows_protocols/ms-tds) and [Transact-SQL (T-SQL)](https://docs.microsoft.com/sql/t-sql/language-reference) allowing apps designed for [Microsoft SQL Server](https://docs.microsoft.com/sql/sql-server) to utilize PostgreSQL as their database. For more details, see ["Goodbye Microsoft SQL Server, Hello Babelfish"](https://aws.amazon.com/blogs/aws/goodbye-microsoft-sql-server-hello-babelfish/) from the AWS News Blog.
+This project builds upon the excellent work by [Jonathan Potts](https://github.com/jonathanpotts/docker-babelfishpg), extending it with comprehensive development tools and VS Code DevContainer integration.
 
-## Quick Start
+## What is Babelfish?
 
-**WARNING: Make sure to create a database dump to backup your data before installing a new image to prevent risk of data loss when changing images.**
+Babelfish for PostgreSQL enables PostgreSQL to understand Microsoft SQL Server's wire protocol (TDS) and T-SQL syntax, allowing applications designed for SQL Server to work with PostgreSQL with minimal changes.
 
-To create a new container, run:
+## Quick Start with DevContainer (Recommended)
 
-`docker run -d -p 1433:1433 jonathanpotts/babelfishpg`
+### Prerequisites
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running
+- [Cursor IDE](https://cursor.com/) or [VS Code](https://code.visualstudio.com/) with Dev Containers extension
+- Git
 
-### Example Data
+### Getting Started
 
-Use the [example_data.sql](https://github.com/jonathanpotts/docker-babelfishpg/blob/main/example_data.sql) script to populate the database with example data.
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/bill-ramos-rmoswi/docker-babelfishpg-devtools.git
+   cd docker-babelfishpg-devtools
+   ```
 
-You can then query the database using commands such as:
+2. **Open in Cursor/VS Code:**
+   ```bash
+   cursor .  # For Cursor IDE
+   # or
+   code .    # For VS Code
+   ```
+
+3. **Start DevContainer:**
+   - Press `F1` or `Cmd/Ctrl+Shift+P`
+   - Run: `Dev Containers: Open Folder in Container`
+   - Wait for build (first time: ~30-60 minutes due to compilation)
+
+4. **Start coding!**
+   - Babelfish is automatically running
+   - All development tools are pre-installed
+   - Claude CLI available: run `claude` for AI assistance
+
+## Connecting to Babelfish
+
+### Port Mappings
+To avoid conflicts with local services, custom ports are used:
+
+| Service | Container Port | Host Port | Purpose |
+|---------|---------------|-----------|---------|
+| Babelfish TDS | 1433 | **3341** | SQL Server protocol (T-SQL) |
+| PostgreSQL | 5432 | **2345** | Native PostgreSQL |
+| SSH | 22 | **2223** | Remote access |
+
+### Connection Details
+
+**Default Credentials:**
+- Username: `babelfish_admin`
+- Password: `secret_password`
+- Database: `babelfish_db`
+
+**From SQL Server Management Studio (SSMS) or Azure Data Studio:**
+```
+Server: localhost,3341
+Authentication: SQL Server Authentication
+Username: babelfish_admin
+Password: secret_password
+```
+
+**From psql or PostgreSQL tools:**
+```bash
+psql -h localhost -p 2345 -U babelfish_admin -d babelfish_db
+```
+
+**Connection String (C#/.NET):**
+```
+Data Source=localhost,3341;Initial Catalog=master;User ID=babelfish_admin;Password=secret_password
+```
+
+## Features
+
+### Pre-installed Development Tools
+- **Claude CLI** - AI-assisted development (`claude` command)
+- **GitHub CLI** - GitHub operations (`gh` command)
+- **Node.js 20.x & npm** - JavaScript runtime
+- **BabelfishDump utilities** - `bbf_dump` and `bbf_dumpall` for backups
+- **PostgreSQL client tools** - Full suite of PostgreSQL utilities
+- **Git** - Version control
+
+### VS Code/Cursor Extensions (Auto-installed)
+- SQL Server (ms-mssql.mssql)
+- PostgreSQL (ms-ossdata.vscode-pgsql)
+- Docker (ms-azuretools.vscode-docker)
+- GitHub Actions (github.vscode-github-actions)
+- GitLens (eamodio.gitlens)
+
+### Backup & Restore
+```bash
+# Create backup
+./backup_babelfish.sh babelfish_db
+
+# Restore backup
+./restore_babelfish.sh babelfish_db
+```
+
+## Standalone Docker Usage (Without DevContainer)
+
+If you prefer to run the container without DevContainer:
+
+```bash
+# Build the image
+docker build -t babelfishpg-devtools .
+
+# Run with custom port mappings
+docker run -d \
+  -p 3341:1433 \
+  -p 2345:5432 \
+  -p 2223:22 \
+  --name babelfish \
+  babelfishpg-devtools
+
+# With custom credentials
+docker run -d \
+  -p 3341:1433 \
+  babelfishpg-devtools \
+  -u my_username \
+  -p my_password \
+  -d my_database
+```
+
+## Data Persistence
+
+- **Database data**: Stored in Docker volume `babelfish-data`
+- **Backups**: Stored in Docker volume `babelfish-backups`
+- **Workspace files**: Synced with host repository
+
+## Development Workflow
+
+1. **Create GitHub issue** for new feature
+2. **Create feature branch**: `feature/issue-<number>-<description>`
+3. **Develop in DevContainer** with all tools available
+4. **Test thoroughly** using integrated tools
+5. **Create Pull Request** for review
+
+## Troubleshooting
+
+### Port conflicts
+If you see "address already in use" errors:
+- These are typically IPv6 errors and can be safely ignored
+- Services work on IPv4 (127.0.0.1) addresses
+- Verify ports 3341, 2345, 2223 are not in use: `netstat -an | grep -E "3341|2345|2223"`
+
+### Container won't start
+- Ensure Docker Desktop is running
+- Check logs: `docker logs <container-id>`
+- Verify sufficient disk space and memory
+
+### Can't connect to Babelfish
+- Wait for full initialization (check container logs)
+- Verify using correct ports (3341 for TDS, not 1433)
+- Check firewall settings
+
+### Rebuild DevContainer
+- Press `F1` → `Dev Containers: Rebuild Container`
+- For clean rebuild: `Dev Containers: Rebuild Container Without Cache`
+
+## Example T-SQL Script
 
 ```sql
-SELECT * FROM example_db.authors;
+-- Create a sample database
+CREATE DATABASE SampleDB;
+GO
+
+USE SampleDB;
+GO
+
+-- Create a table
+CREATE TABLE Customers (
+    CustomerID int PRIMARY KEY,
+    FirstName nvarchar(50),
+    LastName nvarchar(50),
+    Email nvarchar(100)
+);
+GO
+
+-- Insert sample data
+INSERT INTO Customers VALUES 
+    (1, 'John', 'Doe', 'john@example.com'),
+    (2, 'Jane', 'Smith', 'jane@example.com');
+GO
+
+-- Query the data
+SELECT * FROM Customers;
+GO
 ```
 
-```sql
-SELECT * FROM example_db.books;
+## Project Structure
+
+```
+.
+├── .devcontainer/          # DevContainer configuration
+│   ├── devcontainer.json   # VS Code DevContainer settings
+│   ├── docker-compose.yml  # Container orchestration
+│   └── README.md           # DevContainer documentation
+├── Dockerfile              # Multi-stage build configuration
+├── start.sh               # Container entry point
+├── backup_babelfish.sh   # Backup utility script
+├── restore_babelfish.sh  # Restore utility script
+├── pg_env.sh             # PostgreSQL environment setup
+├── example_data.sql      # Sample T-SQL script
+└── CLAUDE.md            # AI context documentation
 ```
 
-### Advanced Setup
+## Contributing
 
-To initialize with a custom username, append `-u my_username` to the `docker run` command where `my_username` is the username desired.
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
 
-To initialize with a custom password, append `-p my_password` to the `docker run` command where `my_password` is the password desired.
+## Acknowledgments
 
-To initialize with a custom database name, append `-d my_database` to the `docker run` command where `my_database` is the database name desired. **This is the name of the database that Babelfish for PostgreSQL uses internally to store the data and is not accessible via TDS.**
+- Original Docker image by [Jonathan Potts](https://github.com/jonathanpotts/docker-babelfishpg)
+- [Babelfish for PostgreSQL](https://babelfishpg.org/) team
+- [Anthropic](https://anthropic.com/) for Claude AI assistance
 
-#### Migration Mode
+## License
 
-By default, the `single-db` migration mode is used.
-To use a different migration mode, append `-m migration_mode` to the `docker run` command where `migration_mode` is the value for the migration mode desired.
+This project maintains the same license as the original repository. See LICENSE file for details.
 
-For more information about migration modes, see [Single vs. multiple instances](https://babelfishpg.org/docs/installation/single-multiple/).
+## Resources
 
-#### Encryption (SSL) Support
-
-Starting with the `2.3.0` image pushed on Mar 4, 2023, encryption (SSL) support has been added to the image. You will need to configure PostgreSQL to use SSL; for instructions, see [Secure TCP/IP Connections with SSL](https://www.postgresql.org/docs/14/ssl-tcp.html).
-
-As a very basic example, to enable encryption with a *self-signed* certificate that *expires in 365 days* and has a *subject of localhost*, in the container's terminal run the following commands:
-
-```sh
-cd /var/lib/babelfish/data
-openssl req -new -x509 -days 365 -nodes -text -out server.crt -keyout server.key -subj "/CN=localhost"
-chmod og-rwx server.key
-echo "ssl = on" >> postgresql.conf
-```
-
-Then restart the container and encryption support should be enabled.
-
-## Connecting
-
-If you are hosting the container on your local machine, the server name is `localhost`. Otherwise, use the IP address or DNS-backed fully qualified domain name (FQDN) for the server you are hosting the container on.
-
-Use SQL Server Authentication mode for login.
-
-The default login for Babelfish is:
-
-* **Username:** `babelfish_user`
-* **Password:** `12345678`
-
-If you specified a custom username and/or password, use those instead.
-
-Many features in SQL Server Management Studio (SSMS) are currently unsupported.
-
-### Connection string
-
-Assuming Babelfish is hosted on the local machine, using the default settings, and you are trying to connect to a database named `example_db`, the connection string is:
-
-`Data Source=localhost;Initial Catalog=example_db;Persist Security Info=true;User ID=babelfish_user;Password=12345678`
-
-## Data Volume
-
-Database data is stored in the `/var/lib/babelfish/data` volume.
-
-## Building Docker Image
-
-> [!IMPORTANT]
-> Breaking changes were made for `BABEL_5_2_0__PG_17_5`. To build an earlier version, the `before-BABEL_5_2_0__PG_17_5` branch should be used.
-
-To build the Docker image, clone the repository and then run `docker build .`.
-
-To use a different Babelfish version, you can:
- * Change `ARG BABELFISH_VERSION=<BABELFISH_VERSION_TAG>` in the `Dockerfile`
- * **-or-**
- * Run `docker build . --build-arg BABELFISH_VERSION=<BABELFISH_VERSION_TAG>`
-
-The Babelfish version tags are listed at https://github.com/babelfish-for-postgresql/babelfish-for-postgresql/tags.
-
-
-
-## Other Extensions
-
-Adding other extensions is outside of the scope of this project. They may not be able to be used through Babelfish and may cause issues with the Babelfish extensions or not work as expected.
-
-To address previous extension request issues, I have created branches for the `plpython3u` and `postgis` extensions. You can use them as examples for making modifications to add extensions you may need.
-
-Future issues requesting that extensions be added to this project will most likely be closed.
+- [Babelfish Documentation](https://babelfishpg.org/docs/)
+- [Cursor IDE](https://cursor.com/)
+- [VS Code Dev Containers](https://code.visualstudio.com/docs/devcontainers/containers)
+- [Project Issues](https://github.com/bill-ramos-rmoswi/docker-babelfishpg-devtools/issues)

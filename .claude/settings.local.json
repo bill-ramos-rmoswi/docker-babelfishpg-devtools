@@ -39,7 +39,9 @@
       "Bash(__NEW_LINE__ \"$GH\" pr view 13 -R $REPO --json state,mergeable,mergeStateStatus)",
       "Bash(__NEW_LINE__ \"$GH\" pr view 13 -R $REPO --json mergedAt,mergedBy,state)",
       "Bash(__NEW_LINE__ \"$GH\" pr view 13 -R $REPO --json state,mergedAt,title)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(\"$GH\" issue create --title \"Add Claude CLI to DevContainer for AI-assisted development\" --body \"## Problem\nClaude CLI (claude.ai/code) is not available inside the DevContainer environment, preventing AI-assisted development when working inside the container.\n\n## Solution\nInstall Claude CLI in the DevContainer to enable seamless AI-assisted development workflow.\n\n## Requirements\n- Install Claude CLI in the Dockerfile or DevContainer features\n- Ensure Claude CLI is available in PATH\n- Configure proper permissions for postgres user\n- Test that Claude CLI works with /summary command\n\n## Acceptance Criteria\n- [ ] Claude CLI is installed and available in DevContainer\n- [ ] claude command is accessible from terminal\n- [ ] Works with postgres user (default DevContainer user)\n- [ ] Can load CLAUDE.md context with /summary command\n- [ ] Documentation updated with Claude CLI usage in DevContainer\" --label \"enhancement\" --label \"devcontainer\" --assignee \"@me\" -R $REPO)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": []
