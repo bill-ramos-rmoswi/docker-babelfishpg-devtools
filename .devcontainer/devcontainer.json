@@ -1,0 +1,69 @@
+{
+  "name": "Babelfish DevTools",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "babelfish",
+  "workspaceFolder": "/workspace",
+  "forwardPorts": [3341, 2345, 2223],
+  "postCreateCommand": "echo 'Welcome to Babelfish DevTools Container'",
+  "postStartCommand": "/start.sh",
+  "remoteUser": "postgres",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-mssql.mssql",
+        "ms-azuretools.vscode-docker",
+        "redhat.vscode-yaml",
+        "ms-vscode.makefile-tools",
+        "github.vscode-github-actions",
+        "eamodio.gitlens"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "terminal.integrated.profiles.linux": {
+          "bash": {
+            "path": "/bin/bash",
+            "icon": "terminal-bash"
+          }
+        },
+        "mssql.connections": [
+          {
+            "server": "localhost,3341",
+            "database": "master",
+            "authenticationType": "SqlLogin",
+            "user": "babelfish_admin",
+            "password": "secret_password",
+            "savePassword": true,
+            "profileName": "Babelfish Local (Port 3341)"
+          }
+        ],
+        "git.autofetch": true,
+        "git.enableSmartCommit": true,
+        "files.watcherExclude": {
+          "**/target/**": true,
+          "**/node_modules/**": true
+        }
+      }
+    }
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": false,
+      "username": "postgres",
+      "userUid": "1000",
+      "userGid": "1000",
+      "upgradePackages": "false"
+    },
+    "ghcr.io/devcontainers/features/github-cli:1": {
+      "version": "latest"
+    }
+  },
+  "mounts": [
+    "source=${localEnv:HOME}/.ssh,target=/home/postgres/.ssh,type=bind,consistency=cached,readonly",
+    "source=${localEnv:HOME}/.gitconfig,target=/home/postgres/.gitconfig,type=bind,consistency=cached,readonly"
+  ],
+  "runArgs": [
+    "--cap-add=SYS_PTRACE",
+    "--security-opt",
+    "seccomp=unconfined"
+  ]
+}
