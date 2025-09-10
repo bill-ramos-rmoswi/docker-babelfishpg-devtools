@@ -92,19 +92,36 @@ if [ ! -f ${BABELFISH_DATA}/postgresql.conf ]; then
 	chown postgres:postgres server.key server.crt
 	# Start PostgreSQL as postgres user
 	su - postgres -c "${BABELFISH_BIN}/pg_ctl -D ${BABELFISH_DATA}/ start"
-	${BABELFISH_BIN}/psql -c "CREATE USER ${USERNAME} WITH SUPERUSER CREATEDB CREATEROLE PASSWORD '${PASSWORD}' INHERIT;" \
-		-c "DROP DATABASE IF EXISTS ${DATABASE};" \
-		-c "CREATE DATABASE ${DATABASE} OWNER ${USERNAME};" \
-		-c "\c ${DATABASE}" \
-		-c "CREATE EXTENSION IF NOT EXISTS \"babelfishpg_tds\" CASCADE;" \
-		-c "GRANT ALL ON SCHEMA sys to ${USERNAME};" \
-		-c "ALTER USER ${USERNAME} CREATEDB;" \
-		-c "ALTER SYSTEM SET babelfishpg_tsql.database_name = '${DATABASE}';" \
-		-c "SELECT pg_reload_conf();" \
-		-c "ALTER DATABASE ${DATABASE} SET babelfishpg_tsql.migration_mode = 'multi-db';" \
-		-c "SELECT pg_reload_conf();" \
-		-c "CALL SYS.INITIALIZE_BABELFISH('${USERNAME}');"
+	# Wait for PostgreSQL to be ready
+	echo "Waiting for PostgreSQL to be ready..."
+	for i in $(seq 1 30); do
+		if su - postgres -c "${BABELFISH_BIN}/pg_isready -U postgres" >/dev/null 2>&1; then
+			echo "PostgreSQL is ready!"
+			break
+		fi
+		echo "Waiting... ($i/30)"
+		sleep 1
+	done
+	# Run initialization commands as postgres user
+	echo "Creating babelfish_admin user and initializing Babelfish..."
+	su - postgres -c "${BABELFISH_BIN}/psql -U postgres -d postgres <<EOF
+CREATE USER ${USERNAME} WITH SUPERUSER CREATEDB CREATEROLE PASSWORD '${PASSWORD}' INHERIT;
+DROP DATABASE IF EXISTS ${DATABASE};
+CREATE DATABASE ${DATABASE} OWNER ${USERNAME};
+\c ${DATABASE}
+CREATE EXTENSION IF NOT EXISTS \"babelfishpg_tds\" CASCADE;
+GRANT ALL ON SCHEMA sys to ${USERNAME};
+ALTER USER ${USERNAME} CREATEDB;
+ALTER SYSTEM SET babelfishpg_tsql.database_name = '${DATABASE}';
+SELECT pg_reload_conf();
+ALTER DATABASE ${DATABASE} SET babelfishpg_tsql.migration_mode = 'multi-db';
+SELECT pg_reload_conf();
+CALL SYS.INITIALIZE_BABELFISH('${USERNAME}');
+EOF"
+	echo "Babelfish initialization complete!"
 	su - postgres -c "${BABELFISH_BIN}/pg_ctl -D ${BABELFISH_DATA}/ stop"
+else
+	echo "Database already initialized, skipping initialization..."
 fi
 
 # Start SSH daemon in the background (if running as root)
@@ -113,6 +130,11 @@ if [ "$(id -u)" = "0" ]; then
 fi
 
 # Start postgres engine as postgres user
+echo "Starting PostgreSQL/Babelfish server..."
+echo "  User: ${USERNAME}"
+echo "  Database: ${DATABASE}"
+echo "  TDS Port: 1433"
+echo "  PostgreSQL Port: 5432"
 if [ "$(id -u)" = "0" ]; then
     exec su - postgres -c "${BABELFISH_BIN}/postgres -D ${BABELFISH_DATA}/ -i"
 else
