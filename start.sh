@@ -22,13 +22,13 @@ if ! command -v psql >/dev/null 2>&1; then
     exit 1
 fi
 
-# Set default argument values
-USERNAME=babelfish_admin
-PASSWORD=secret_password
-DATABASE=babelfish_db
-MIGRATION_MODE=multi-db
+# Set default values - prefer environment variables, then defaults
+USERNAME=${BABELFISH_USER:-babelfish_admin}
+PASSWORD=${BABELFISH_PASSWORD:-secret_password}
+DATABASE=${BABELFISH_DATABASE:-babelfish_db}
+MIGRATION_MODE=${BABELFISH_MIGRATION_MODE:-multi-db}
 
-# Populate argument values from command
+# Override with command line arguments if provided
 while getopts u:p:d:m: flag; do
 	case "${flag}" in
 		u) USERNAME=${OPTARG};;
@@ -37,6 +37,13 @@ while getopts u:p:d:m: flag; do
 		m) MIGRATION_MODE=${OPTARG};;
 	esac
 done
+
+echo "========================================="
+echo "Babelfish Configuration:"
+echo "  Username: ${USERNAME}"
+echo "  Database: ${DATABASE}"
+echo "  Migration Mode: ${MIGRATION_MODE}"
+echo "========================================="
 
 # Initialize database cluster if it does not exist
 if [ ! -f ${BABELFISH_DATA}/postgresql.conf ]; then
@@ -103,7 +110,7 @@ if [ ! -f ${BABELFISH_DATA}/postgresql.conf ]; then
 		sleep 1
 	done
 	# Run initialization commands as postgres user
-	echo "Creating babelfish_admin user and initializing Babelfish..."
+	echo "Creating ${USERNAME} user and initializing Babelfish..."
 	su - postgres -c "${BABELFISH_BIN}/psql -U postgres -d postgres <<EOF
 CREATE USER ${USERNAME} WITH SUPERUSER CREATEDB CREATEROLE PASSWORD '${PASSWORD}' INHERIT;
 DROP DATABASE IF EXISTS ${DATABASE};
