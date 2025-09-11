@@ -17,9 +17,14 @@ services:
       # PostgreSQL/Babelfish connection settings
       - PGHOST=localhost
       - PGPORT=5432
-      - PGDATABASE=babelfish_db
-      - PGUSER=babelfish_admin
-      - PGPASSWORD=secret_password
+      - PGDATABASE=${BABELFISH_DATABASE:-babelfish_db}
+      - PGUSER=${BABELFISH_USER:-babelfish_admin}
+      - PGPASSWORD=${BABELFISH_PASSWORD:-secret_password}
+      # Babelfish initialization settings
+      - BABELFISH_USER=${BABELFISH_USER:-babelfish_admin}
+      - BABELFISH_PASSWORD=${BABELFISH_PASSWORD:-secret_password}
+      - BABELFISH_DATABASE=${BABELFISH_DATABASE:-babelfish_db}
+      - ROOT_PASSWORD=${ROOT_PASSWORD:-postgres}
       # Babelfish TDS settings
       - BABELFISH_TDS_PORT=1433
       # Locale settings
@@ -37,6 +42,7 @@ services:
       - SYS_PTRACE
     security_opt:
       - seccomp:unconfined
+    # Default command (uses environment variables or defaults)
     command: /start.sh
 
 volumes:

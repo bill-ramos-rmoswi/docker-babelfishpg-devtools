@@ -75,6 +75,7 @@ target/
 docker-babelfishpg-devtools_devcontainer*/
 .devcontainer/.env
 .devcontainer/.envrc
+.env
 
 # Temporary files
 tmp/
