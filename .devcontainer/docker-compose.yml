@@ -1,8 +1,14 @@
 services:
   babelfish:
-    build: 
-      context: ..
-      dockerfile: Dockerfile
+    # Option 1: Use pre-built image (uncomment if you built manually)
+    image: babelfishpg-devtools:latest
+    # Option 2: Build from Dockerfile (comment out if using pre-built)
+    # build: 
+    #   context: ..
+    #   dockerfile: Dockerfile
+    # Load environment variables from .env file
+    env_file:
+      - .env
     volumes:
       # Mount workspace
       - ..:/workspace:cached
@@ -14,9 +20,14 @@ services:
       # PostgreSQL/Babelfish connection settings
       - PGHOST=localhost
       - PGPORT=5432
-      - PGDATABASE=babelfish_db
-      - PGUSER=babelfish_admin
-      - PGPASSWORD=secret_password
+      - PGDATABASE=${BABELFISH_DATABASE:-babelfish_db}
+      - PGUSER=${BABELFISH_USER:-babelfish_admin}
+      - PGPASSWORD=${BABELFISH_PASSWORD:-secret_password}
+      # Babelfish initialization settings
+      - BABELFISH_USER=${BABELFISH_USER:-babelfish_admin}
+      - BABELFISH_PASSWORD=${BABELFISH_PASSWORD:-secret_password}
+      - BABELFISH_DATABASE=${BABELFISH_DATABASE:-babelfish_db}
+      - ROOT_PASSWORD=${ROOT_PASSWORD:-postgres}
       # Babelfish TDS settings
       - BABELFISH_TDS_PORT=1433
       # Locale settings
@@ -34,6 +45,7 @@ services:
       - SYS_PTRACE
     security_opt:
       - seccomp:unconfined
+    # Default command (uses environment variables or defaults)
     command: /start.sh
 
 volumes:

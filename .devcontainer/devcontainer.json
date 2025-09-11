@@ -5,7 +5,6 @@
   "workspaceFolder": "/workspace",
   "forwardPorts": [3341, 2345, 2223],
   "postCreateCommand": "echo 'Welcome to Babelfish DevTools Container'",
-  "postStartCommand": "/start.sh",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -27,13 +26,13 @@
         },
         "mssql.connections": [
           {
-            "server": "localhost,3341",
+            "server": "localhost,1433",
             "database": "master",
             "authenticationType": "SqlLogin",
-            "user": "babelfish_admin",
-            "password": "secret_password",
-            "savePassword": true,
-            "profileName": "Babelfish Local (Port 3341)"
+            "user": "${env:BABELFISH_USER}",
+            "password": "${env:BABELFISH_PASSWORD}",
+            "savePassword": false,
+            "profileName": "Babelfish Local (Port 1433)"
           }
         ],
         "git.autofetch": true,

@@ -14,7 +14,12 @@ if [ "$(id -u)" = "0" ]; then
     chmod 700 ${BABELFISH_DATA}
 fi
 
-# TODO - Add BabelfishDump verification when it's working
+# Update root password if ROOT_PASSWORD is set
+if [ -n "${ROOT_PASSWORD}" ] && [ "$(id -u)" = "0" ]; then
+    echo "Setting root password..."
+    echo "root:${ROOT_PASSWORD}" | chpasswd
+fi
+
 # Verify PostgreSQL tools are available
 if ! command -v psql >/dev/null 2>&1; then
     echo "Error: Required PostgreSQL tools not found in PATH"
@@ -22,7 +27,7 @@ if ! command -v psql >/dev/null 2>&1; then
     exit 1
 fi
 
-# Set default values - prefer environment variables, then defaults
+# Set default values - prefer environment variables, then command line args, then defaults
 USERNAME=${BABELFISH_USER:-babelfish_admin}
 PASSWORD=${BABELFISH_PASSWORD:-secret_password}
 DATABASE=${BABELFISH_DATABASE:-babelfish_db}
@@ -121,7 +126,7 @@ GRANT ALL ON SCHEMA sys to ${USERNAME};
 ALTER USER ${USERNAME} CREATEDB;
 ALTER SYSTEM SET babelfishpg_tsql.database_name = '${DATABASE}';
 SELECT pg_reload_conf();
-ALTER DATABASE ${DATABASE} SET babelfishpg_tsql.migration_mode = 'multi-db';
+ALTER DATABASE ${DATABASE} SET babelfishpg_tsql.migration_mode = '${MIGRATION_MODE}';
 SELECT pg_reload_conf();
 CALL SYS.INITIALIZE_BABELFISH('${USERNAME}');
 EOF"

@@ -1,212 +1,289 @@
+# ==========================================
+# Babelfish for PostgreSQL DevTools Container
+# ==========================================
+# This multi-stage Dockerfile builds a comprehensive development environment
+# for Babelfish for PostgreSQL with integrated development tools and utilities.
+#
+# Build Arguments:
+#   BABELFISH_VERSION - Babelfish release tag (default: BABEL_5_2_0__PG_17_5)
+#   JOBS - Number of parallel build jobs (default: 4)
+#
+# Stages:
+#   1. base - Ubuntu 22.04 foundation
+#   2. build-deps - Build dependencies installation
+#   3. antlr-builder - ANTLR 4 compilation
+#   4. postgres-builder - PostgreSQL/Babelfish compilation
+#   5. bbfdump-builder - BabelfishDump utilities
+#   6. runner - Final runtime image
+
+# ==========================================
+# Stage 1: Base Image
+# Purpose: Common Ubuntu 22.04 foundation for all stages
+# ==========================================
 FROM ubuntu:22.04 AS base
-
-# Build stage
-FROM base AS builder
-
-# Specify babelfish version by using a tag from:
-# https://github.com/babelfish-for-postgresql/babelfish-for-postgresql/tags
-ARG BABELFISH_VERSION=BABEL_5_2_0__PG_17_5
-
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install build dependencies
-RUN apt update && apt install -y --no-install-recommends\
-	build-essential flex libxml2-dev libxml2-utils\
-	libxslt-dev libssl-dev libreadline-dev zlib1g-dev\
-	libldap2-dev libpam0g-dev gettext uuid uuid-dev\
-	cmake lld apt-utils libossp-uuid-dev gnulib bison\
-	xsltproc icu-devtools libicu70\
-	libicu-dev gawk\
-	curl openjdk-21-jre openssl\
-	g++ libssl-dev python-dev-is-python3 libpq-dev\
-	pkg-config libutfcpp-dev\
-	gnupg unixodbc-dev net-tools unzip wget\
-	postgresql-client postgresql-client-common postgresql-common git
+# ==========================================
+# Stage 2: Build Dependencies
+# Purpose: Install all build dependencies in a single cacheable layer
+# ==========================================
+FROM base AS build-deps
 
-# Download babelfish sources
+# Install all build dependencies at once for better layer caching
+RUN apt-get update && apt-get install -y --no-install-recommends \
+	# Core build tools
+	build-essential \
+	cmake \
+	lld \
+	bison \
+	flex \
+	gawk \
+	pkg-config \
+	# PostgreSQL build dependencies
+	libxml2-dev \
+	libxml2-utils \
+	libxslt-dev \
+	libssl-dev \
+	libreadline-dev \
+	zlib1g-dev \
+	libldap2-dev \
+	libpam0g-dev \
+	libpq-dev \
+	libossp-uuid-dev \
+	uuid \
+	uuid-dev \
+	libicu-dev \
+	libicu70 \
+	icu-devtools \
+	# ANTLR and Java dependencies
+	openjdk-21-jre \
+	g++ \
+	libutfcpp-dev \
+	# Additional tools
+	curl \
+	wget \
+	git \
+	gnupg \
+	unzip \
+	gettext \
+	gnulib \
+	xsltproc \
+	openssl \
+	python-dev-is-python3 \
+	unixodbc-dev \
+	net-tools \
+	apt-utils \
+	# PostgreSQL client tools
+	postgresql-client \
+	postgresql-client-common \
+	postgresql-common \
+	# BabelfishDump dependencies
+	rpm \
+	alien \
+	liblz4-dev \
+	libkrb5-dev \
+	&& rm -rf /var/lib/apt/lists/*
+
+# ==========================================
+# Stage 3: ANTLR Builder
+# Purpose: Build ANTLR 4 runtime for T-SQL parser
+# ==========================================
+FROM build-deps AS antlr-builder
+
+# Build configuration
+ARG JOBS=4
+ARG ANTLR4_VERSION=4.13.2
+
+# ANTLR environment variables
+ENV ANTLR4_VERSION=${ANTLR4_VERSION} \
+    ANTLR4_JAVA_BIN=/usr/bin/java \
+    ANTLR4_RUNTIME_LIBRARIES=/usr/include/antlr4-runtime \
+    ANTLR_RUNTIME=/workplace/antlr4
+
 WORKDIR /workplace
 
-ENV BABELFISH_REPO=babelfish-for-postgresql/babelfish-for-postgresql
-ENV BABELFISH_URL=https://github.com/${BABELFISH_REPO}
-ENV BABELFISH_TAG=${BABELFISH_VERSION}
-ENV BABELFISH_FILE=${BABELFISH_VERSION}.tar.gz
-
-RUN wget ${BABELFISH_URL}/releases/download/${BABELFISH_TAG}/${BABELFISH_FILE}
-RUN tar -xvzf ${BABELFISH_FILE}
-
-# Set environment variables
-ENV JOBS=4
-ENV BABELFISH_HOME=/opt/babelfish
-ENV PG_CONFIG=${BABELFISH_HOME}/bin/pg_config
-ENV PG_SRC=/workplace/${BABELFISH_VERSION}
-
-WORKDIR ${PG_SRC}
-
-ENV PG_CONFIG=${BABELFISH_HOME}/bin/pg_config
-
-# Compile ANTLR 4
-ENV ANTLR4_VERSION=4.13.2
-ENV ANTLR4_JAVA_BIN=/usr/bin/java
-ENV ANTLR4_RUNTIME_LIBRARIES=/usr/include/antlr4-runtime
-ENV ANTLR_FILE=antlr-${ANTLR4_VERSION}-complete.jar
-ENV ANTLR_EXECUTABLE=/usr/local/lib/${ANTLR_FILE}
-ENV ANTLR_CONTRIB=${PG_SRC}/contrib/babelfishpg_tsql/antlr/thirdparty/antlr
-ENV ANTLR_RUNTIME=/workplace/antlr4
-
-RUN cp ${ANTLR_CONTRIB}/${ANTLR_FILE} /usr/local/lib
-
-WORKDIR /workplace
-
-ENV ANTLR_DOWNLOAD=http://www.antlr.org/download
-ENV ANTLR_CPP_SOURCE=antlr4-cpp-runtime-${ANTLR4_VERSION}-source.zip
-
-RUN wget ${ANTLR_DOWNLOAD}/${ANTLR_CPP_SOURCE}
-RUN unzip -d ${ANTLR_RUNTIME} ${ANTLR_CPP_SOURCE}
+# Download and build ANTLR C++ runtime
+RUN wget http://www.antlr.org/download/antlr4-cpp-runtime-${ANTLR4_VERSION}-source.zip && \
+    unzip -d ${ANTLR_RUNTIME} antlr4-cpp-runtime-${ANTLR4_VERSION}-source.zip && \
+    rm antlr4-cpp-runtime-${ANTLR4_VERSION}-source.zip
 
 WORKDIR ${ANTLR_RUNTIME}/build
 
-RUN cmake .. -D\
-	ANTLR_JAR_LOCATION=${ANTLR_EXECUTABLE}\
-	-DCMAKE_INSTALL_PREFIX=/usr/local -DWITH_DEMO=True
-RUN make -j ${JOBS} && make install
+RUN cmake .. \
+    -DANTLR_JAR_LOCATION=/usr/local/lib/antlr-${ANTLR4_VERSION}-complete.jar \
+    -DCMAKE_INSTALL_PREFIX=/usr/local \
+    -DWITH_DEMO=True && \
+    make -j ${JOBS} && \
+    make install
 
-# Build modified PostgreSQL for Babelfish
-WORKDIR ${PG_SRC}
+# ==========================================
+# Stage 4: PostgreSQL/Babelfish Builder
+# Purpose: Build modified PostgreSQL with Babelfish extensions
+# ==========================================
+FROM antlr-builder AS postgres-builder
 
-RUN ./configure CFLAGS="-ggdb"\
-	--prefix=${BABELFISH_HOME}/\
-	--enable-debug\
-	--with-ldap\
-	--with-libxml\
-	--with-pam\
-	--with-uuid=ossp\
-	--enable-nls\
-	--with-libxslt\
-	--with-icu\
-	--with-openssl
-					
-RUN make DESTDIR=${BABELFISH_HOME}/ -j ${JOBS} 2>error.txt && make install
+# Babelfish version configuration
+ARG BABELFISH_VERSION=BABEL_5_2_0__PG_17_5
+ARG JOBS=4
 
-WORKDIR ${PG_SRC}/contrib
+# Set environment variables for build
+ENV BABELFISH_VERSION=${BABELFISH_VERSION} \
+    BABELFISH_HOME=/opt/babelfish \
+    JOBS=${JOBS}
 
-RUN make -j ${JOBS} && make install
-
-# Compile the ANTLR parser generator
-RUN cp /usr/local/lib/libantlr4-runtime.so.${ANTLR4_VERSION}\
-	${BABELFISH_HOME}/lib
-					 
-WORKDIR ${PG_SRC}/contrib/babelfishpg_tsql/antlr 
-RUN cmake -Wno-dev .
-RUN make all
-
-# Compile the contrib modules and build Babelfish
-WORKDIR ${PG_SRC}/contrib/babelfishpg_common
-RUN make -j ${JOBS} && make PG_CONFIG=${PG_CONFIG} install
-
-WORKDIR ${PG_SRC}/contrib/babelfishpg_money
-RUN make -j ${JOBS} && make PG_CONFIG=${PG_CONFIG} install
-
-WORKDIR ${PG_SRC}/contrib/babelfishpg_tds
-RUN make -j ${JOBS} && make PG_CONFIG=${PG_CONFIG} install
-
-WORKDIR ${PG_SRC}/contrib/babelfishpg_tsql
-RUN make -j ${JOBS} && make PG_CONFIG=${PG_CONFIG} install
-
-# Build and install BabelfishDump utilities
 WORKDIR /workplace
 
-# Clone the postgresql_modified_for_babelfish repository
-RUN git clone https://github.com/babelfish-for-postgresql/postgresql_modified_for_babelfish.git
-WORKDIR /workplace/postgresql_modified_for_babelfish
-# Checkout the same version as Babelfish
-RUN git checkout ${BABELFISH_TAG}
+# Download Babelfish sources
+RUN wget https://github.com/babelfish-for-postgresql/babelfish-for-postgresql/releases/download/${BABELFISH_VERSION}/${BABELFISH_VERSION}.tar.gz && \
+    tar -xzf ${BABELFISH_VERSION}.tar.gz && \
+    rm ${BABELFISH_VERSION}.tar.gz
 
-# Install additional build dependencies for BabelfishDump
-RUN apt-get update && apt-get install -y \
-    rpm \
+# Set PostgreSQL source directory
+ENV PG_SRC=/workplace/${BABELFISH_VERSION} \
+    PG_CONFIG=/opt/babelfish/bin/pg_config
 
-	liblz4-dev \
-    libicu-dev \
-    libxml2-dev \
-    libssl-dev \
-    uuid-dev \
-    libkrb5-dev \
-    libpam-dev \
-    alien \
-    && rm -rf /var/lib/apt/lists/*
+# Copy ANTLR jar for parser generation
+RUN cp ${PG_SRC}/contrib/babelfishpg_tsql/antlr/thirdparty/antlr/antlr-${ANTLR4_VERSION}-complete.jar /usr/local/lib/
 
-# Build BabelfishDump RPM
-RUN make rpm NODEPS=1
+# Configure and build PostgreSQL with Babelfish support
+WORKDIR ${PG_SRC}
 
-# Install the built RPM using alien (converts and installs RPM to DEB)
-RUN cd build && \
+RUN ./configure \
+    CFLAGS="-ggdb" \
+    --prefix=${BABELFISH_HOME}/ \
+    --enable-debug \
+    --with-ldap \
+    --with-libxml \
+    --with-pam \
+    --with-uuid=ossp \
+    --enable-nls \
+    --with-libxslt \
+    --with-icu \
+    --with-openssl && \
+    make DESTDIR=${BABELFISH_HOME}/ -j ${JOBS} 2>error.txt && \
+    make install
+
+# Build PostgreSQL contrib modules
+WORKDIR ${PG_SRC}/contrib
+RUN make -j ${JOBS} && make install
+
+# Copy ANTLR runtime library
+RUN cp /usr/local/lib/libantlr4-runtime.so.${ANTLR4_VERSION} ${BABELFISH_HOME}/lib
+
+# Build ANTLR parser for T-SQL
+WORKDIR ${PG_SRC}/contrib/babelfishpg_tsql/antlr
+RUN cmake -Wno-dev . && make all
+
+# Build Babelfish extension modules
+WORKDIR ${PG_SRC}/contrib
+RUN for module in babelfishpg_common babelfishpg_money babelfishpg_tds babelfishpg_tsql; do \
+        echo "Building $module..." && \
+        cd $module && \
+        make -j ${JOBS} && \
+        make PG_CONFIG=${PG_CONFIG} install && \
+        cd ..; \
+    done
+
+# ==========================================
+# Stage 5: BabelfishDump Builder
+# Purpose: Build BabelfishDump backup utilities
+# ==========================================
+FROM postgres-builder AS bbfdump-builder
+
+ARG BABELFISH_VERSION=BABEL_5_2_0__PG_17_5
+ARG JOBS=4
+
+WORKDIR /workplace
+
+# Clone and build BabelfishDump utilities
+RUN git clone https://github.com/babelfish-for-postgresql/postgresql_modified_for_babelfish.git && \
+    cd postgresql_modified_for_babelfish && \
+    git checkout ${BABELFISH_VERSION} && \
+    make rpm NODEPS=1 && \
+    cd build && \
     alien -i BabelfishDump*.rpm && \
     rm -f *.rpm
 
-# Run stage
+# ==========================================
+# Stage 6: Final Runtime Image
+# Purpose: Minimal runtime with all necessary components
+# ==========================================
 FROM base AS runner
-ENV DEBIAN_FRONTEND=noninteractive
-ENV LC_ALL=C
-ENV LANG=C
-ENV LANGUAGE=C
-ENV BABELFISH_HOME=/opt/babelfish
-ENV POSTGRES_USER_HOME=/var/lib/babelfish
 
-# Install dos2unix first
-RUN apt-get update && apt-get install -y dos2unix && rm -rf /var/lib/apt/lists/*
+# Set environment for runtime
+ENV LC_ALL=C \
+    LANG=C \
+    LANGUAGE=C \
+    BABELFISH_HOME=/opt/babelfish \
+    POSTGRES_USER_HOME=/var/lib/babelfish \
+    BABELFISH_DATA=/var/lib/babelfish/data \
+    PATH=/opt/babelfish/bin:$PATH
 
-# Copy binaries and scripts to run stage
-WORKDIR ${BABELFISH_HOME}
-COPY --from=builder ${BABELFISH_HOME} .
-COPY --from=builder /usr/bin/bbf_dump /usr/bin/
-COPY --from=builder /usr/bin/bbf_dumpall /usr/bin/
+# Create necessary directories
+RUN mkdir -p ${BABELFISH_HOME} ${POSTGRES_USER_HOME} ${BABELFISH_DATA} /var/lib/babelfish/bbf_backups
 
-# Copy and prepare scripts
+# Copy compiled binaries from builder stages
+COPY --from=bbfdump-builder ${BABELFISH_HOME} ${BABELFISH_HOME}
+COPY --from=bbfdump-builder /usr/bin/bbf_dump /usr/bin/bbf_dumpall /usr/bin/
+
+# Install runtime dependencies (optimized for size)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+	# PostgreSQL runtime libraries
+	libssl3 \
+	openssl \
+	libldap-2.5-0 \
+	libxml2 \
+	libpam0g \
+	uuid \
+	libossp-uuid16 \
+	libxslt1.1 \
+	libicu70 \
+	libpq5 \
+	unixodbc \
+	# PostgreSQL client tools
+	postgresql-client \
+	postgresql-client-common \
+	postgresql-common \
+	# System utilities
+	sudo \
+	dos2unix \
+	curl \
+	ca-certificates \
+	gnupg \
+	# Required for some scripts
+	git \
+	build-essential \
+	alien \
+	&& rm -rf /var/lib/apt/lists/*
+
+# Install Node.js and Claude CLI for AI-assisted development
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    npm install -g npm@latest && \
+    npm install -g @anthropic-ai/claude-code && \
+    claude migrate-installer || true && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Configure SSH server for remote access
+RUN apt-get update && \
+    apt-get install -y openssh-server && \
+    mkdir -p /var/run/sshd && \
+    echo 'root:postgres' | chpasswd && \
+    sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
+    sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy and prepare helper scripts
 COPY backup_babelfish.sh restore_babelfish.sh pg_env.sh /tmp/
-RUN dos2unix /tmp/backup_babelfish.sh /tmp/restore_babelfish.sh /tmp/pg_env.sh && \
+RUN dos2unix /tmp/*.sh && \
     mv /tmp/backup_babelfish.sh /tmp/restore_babelfish.sh /usr/bin/ && \
     mv /tmp/pg_env.sh /etc/profile.d/ && \
     chmod +x /usr/bin/backup_babelfish.sh /usr/bin/restore_babelfish.sh /etc/profile.d/pg_env.sh
 
-# Create backup directory structure
-RUN mkdir -p /var/lib/babelfish/bbf_backups
-
-# Install runtime dependencies
-RUN apt update && apt install -y --no-install-recommends\
-	libssl3 openssl libldap-2.5-0 libxml2 libpam0g uuid libossp-uuid16\
-	libxslt1.1 libicu70 libpq5 unixodbc sudo postgresql-client\
-	postgresql-client-common postgresql-common git build-essential alien\
-	dos2unix curl ca-certificates gnupg
-
-# BabelfishDump utilities are already installed from the builder stage
-
-# Install Node.js 20.x and npm for Claude CLI
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs && \
-    npm install -g npm@latest
-
-# Install Claude CLI for AI-assisted development
-# Using local installation to avoid permission issues
-RUN npm install -g @anthropic-ai/claude-code && \
-    claude migrate-installer || true
-
-# Enable data volume
-ENV BABELFISH_DATA=${POSTGRES_USER_HOME}/data
-RUN mkdir -p ${BABELFISH_DATA}
-VOLUME ${BABELFISH_DATA}
-
-# Install and configure SSH
-RUN apt-get update && apt-get install -y openssh-server
-RUN mkdir /var/run/sshd
-RUN echo 'root:postgres' | chpasswd
-RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
-RUN sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd
-
-# Set up postgres user directories
-RUN mkdir -p ${POSTGRES_USER_HOME} && \
-    chown -R postgres:postgres ${BABELFISH_HOME} && \
-    chown -R postgres:postgres ${POSTGRES_USER_HOME}
-RUN echo "postgres ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+# Set up postgres user permissions
+RUN chown -R postgres:postgres ${BABELFISH_HOME} ${POSTGRES_USER_HOME} && \
+    echo "postgres ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
 # Ensure Claude CLI is accessible to postgres user
 RUN if [ -d /root/.local/share/claude ]; then \
@@ -214,18 +291,16 @@ RUN if [ -d /root/.local/share/claude ]; then \
         chmod -R 755 /usr/local/share/claude; \
     fi
 
-# Expose SSH port
-EXPOSE 22
+# Define data volume for persistence
+VOLUME ${BABELFISH_DATA}
 
-# Run as root to handle permissions, start.sh will switch to postgres
-# USER postgres (commented out - container needs to start as root)
+# Expose network ports
+EXPOSE 22 1433 5432
 
-# Expose ports
-# TDS (SQL Server protocol) port
-EXPOSE 1433
-# PostgreSQL native port
-EXPOSE 5432
-
-# Set entry point
+# Copy and set entry point script
 COPY start.sh /
-ENTRYPOINT [ "/start.sh" ]
+RUN chmod +x /start.sh
+
+# Container starts as root to handle permissions
+# start.sh will switch to postgres user after initialization
+ENTRYPOINT ["/start.sh"]
