@@ -274,6 +274,17 @@ RUN apt-get update && \
     sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd && \
     rm -rf /var/lib/apt/lists/*
 
+# Install Microsoft SQL Server command line tools (Issue #14)
+RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - && \
+    curl https://packages.microsoft.com/config/ubuntu/22.04/prod.list > /etc/apt/sources.list.d/mssql-release.list && \
+    apt-get update && \
+    ACCEPT_EULA=Y apt-get install -y --no-install-recommends \
+    msodbcsql18 \
+    mssql-tools18 \
+    && rm -rf /var/lib/apt/lists/* && \
+    echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' >> /etc/profile.d/mssql.sh && \
+    echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' >> /etc/bash.bashrc
+
 # Copy and prepare helper scripts
 COPY backup_babelfish.sh restore_babelfish.sh pg_env.sh /tmp/
 RUN dos2unix /tmp/*.sh && \

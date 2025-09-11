@@ -276,6 +276,21 @@ tsql -S localhost -p 1433 -U babelfish_admin -P secret_password
 psql -U babelfish_admin -d babelfish_db -c "SELECT name FROM sys.databases"
 ```
 
+### Test MSSQL Tools (Issue #14)
+```bash
+# Verify sqlcmd installation
+sqlcmd -?
+
+# Connect to Babelfish using sqlcmd
+sqlcmd -S localhost,1433 -U babelfish_admin -P secret_password -Q "SELECT @@version"
+
+# Test bcp utility
+bcp --version
+
+# Environment should include MSSQL tools in PATH
+echo $PATH | grep mssql-tools18
+```
+
 ### Backup and Restore Testing
 ```bash
 # Create backup
@@ -299,14 +314,49 @@ psql -U babelfish_admin -d babelfish_db -c "SELECT name FROM sys.databases"
 
 ### In Progress
 - 🔄 SSH server configuration (Issue #3)
+- 🔄 Microsoft SQL Server tools (Issue #14) - Implementation complete, testing pending
 
 ### Planned
 - 📋 Babelfish Compass integration (Issue #4)
 - 📋 AWS CLI v2 (Issue #5)
 - 📋 Liquibase for schema management (Issue #6)
-- 📋 Microsoft SQL Server tools (Issue #14)
 - 📋 Directory structure reorganization (Issue #8)
 - 📋 S3 backup/restore support (Issue #9)
+
+## Current Work Status (Issue #14 - MSSQL Tools)
+
+### What's Been Done
+- ✅ Created feature branch: `feature/issue-14-mssql-tools`
+- ✅ Added MSSQL tools installation to Dockerfile (lines 277-286)
+- ✅ Configured PATH for sqlcmd and bcp tools
+- ✅ Added ACCEPT_EULA=Y for unattended installation
+
+### Next Steps for Host Machine
+1. **Rebuild DevContainer** from Cursor/VS Code:
+   - Close the current DevContainer
+   - Run: `Dev Containers: Rebuild Container`
+   - This will use the updated Dockerfile with MSSQL tools
+
+2. **Test MSSQL Tools** after rebuild:
+   ```bash
+   # Inside rebuilt container
+   sqlcmd -?
+   sqlcmd -S localhost,1433 -U babelfish_admin -P secret_password
+   bcp --version
+   ```
+
+3. **If tests pass**, create PR:
+   ```bash
+   git add Dockerfile CLAUDE.md
+   git commit -m "feat: Add Microsoft SQL Server command line tools (Issue #14)"
+   git push origin feature/issue-14-mssql-tools
+   # Then create PR via GitHub
+   ```
+
+### Known Status
+- Branch is currently on `feature/issue-14-mssql-tools`
+- Changes are staged but not yet committed
+- Testing requires DevContainer rebuild from host
 
 ## Important Notes
 
