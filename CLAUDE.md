@@ -172,23 +172,15 @@ psql -U babelfish_admin -d babelfish_db -c "SELECT name FROM sys.databases"
 
 ### Completed
 - ✅ DevContainer support (Issue #7)
-- ✅ BabelfishDump utilities integration (Issue #2)
+- ✅ BabelfishDump utilities integration
 - ✅ Enhanced start.sh with proper permissions
 - ✅ Backup/restore scripts
 - ✅ PostgreSQL VS Code extension
 - ✅ Security improvements (.gitignore)
 
 ### In Progress
-- 🔄 Dockerfile multi-stage optimization (Issue #1)
-- 🔄 SSH server configuration (Issue #3)
+- 🔄 Ensure backup_babelfish.sh and restore_babelfish.sh are simple to use for Windows users with Docker volumes (Issue #2)
 
-### Planned
-- 📋 Babelfish Compass integration (Issue #4)
-- 📋 AWS CLI v2 (Issue #5)
-- 📋 Liquibase for schema management (Issue #6)
-- 📋 Microsoft SQL Server tools (Issue #14)
-- 📋 Directory structure reorganization (Issue #8)
-- 📋 S3 backup/restore support (Issue #9)
 
 ## Important Notes
 
