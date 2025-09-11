@@ -107,6 +107,8 @@ RUN wget http://www.antlr.org/download/antlr4-cpp-runtime-${ANTLR4_VERSION}-sour
     unzip -d ${ANTLR_RUNTIME} antlr4-cpp-runtime-${ANTLR4_VERSION}-source.zip && \
     rm antlr4-cpp-runtime-${ANTLR4_VERSION}-source.zip
 
+RUN mkdir -p ${ANTLR_RUNTIME}/build
+
 WORKDIR ${ANTLR_RUNTIME}/build
 
 RUN cmake .. \
