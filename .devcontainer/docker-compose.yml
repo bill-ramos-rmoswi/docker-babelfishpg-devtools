@@ -1,8 +1,11 @@
 services:
   babelfish:
-    build: 
-      context: ..
-      dockerfile: Dockerfile
+    # Option 1: Use pre-built image (uncomment if you built manually)
+    image: babelfishpg-devtools:latest
+    # Option 2: Build from Dockerfile (comment out if using pre-built)
+    # build: 
+    #   context: ..
+    #   dockerfile: Dockerfile
     volumes:
       # Mount workspace
       - ..:/workspace:cached
