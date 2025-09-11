@@ -63,20 +63,40 @@ docker-compose -f .devcontainer/docker-compose.yml up
 
 ## Architecture
 
-### Multi-Stage Dockerfile Build Process
-1. **Base Stage**: Ubuntu 22.04 foundation
-2. **Builder Stage**: 
-   - Installs build dependencies
-   - Downloads and extracts Babelfish sources
-   - Compiles ANTLR 4 runtime
-   - Builds modified PostgreSQL with Babelfish extensions
-   - Compiles all Babelfish contrib modules (common, money, tds, tsql)
-   - Builds BabelfishDump utilities (bbf_dump, bbf_dumpall)
-3. **Runner Stage**: 
-   - Copies compiled binaries from builder
-   - Installs runtime dependencies
-   - Configures SSH server
-   - Sets up database initialization via `start.sh`
+### Multi-Stage Dockerfile Build Process (Refactored in PR #17)
+The Dockerfile uses an optimized 6-stage build pattern for better caching and maintainability:
+
+1. **base**: Ubuntu 22.04 foundation
+   - Minimal base image
+   - DEBIAN_FRONTEND=noninteractive
+
+2. **build-deps**: All build dependencies in one cacheable layer
+   - Core build tools (gcc, cmake, etc.)
+   - PostgreSQL build dependencies
+   - ANTLR/Java dependencies
+   - BabelfishDump dependencies
+   - Single apt-get install for optimal caching
+
+3. **antlr-builder**: ANTLR 4 runtime compilation
+   - Builds ANTLR C++ runtime
+   - Isolated from other build processes
+
+4. **postgres-builder**: PostgreSQL/Babelfish compilation
+   - Downloads Babelfish sources
+   - Configures and builds PostgreSQL
+   - Builds all Babelfish extensions
+   - Uses loop for building modules
+
+5. **bbfdump-builder**: BabelfishDump utilities build
+   - Clones postgresql_modified_for_babelfish repo
+   - Builds RPM and converts to DEB
+   - Isolated for independent updates
+
+6. **runner**: Final runtime image
+   - Copies binaries from builder stages
+   - Installs runtime dependencies only
+   - Configures SSH, Node.js, Claude CLI
+   - Sets up permissions and volumes
 
 ### Key Components
 - **start.sh**: Enhanced entry point script with proper permission handling and user creation
@@ -92,6 +112,101 @@ docker-compose -f .devcontainer/docker-compose.yml up
 - Backup directory: `/var/lib/babelfish/bbf_backups`
 - Babelfish installation: `/opt/babelfish`
 - BabelfishDump utilities: `/opt/babelfish/bin/bbf_dump*`
+
+## Adding New Tools to the Container
+
+Following the multi-stage pattern established in PR #17, here's how to add new tools:
+
+### Where to Add Dependencies
+
+#### Build-Time Dependencies (Stage: build-deps)
+Add to the `build-deps` stage if the tool is needed ONLY during compilation:
+```dockerfile
+FROM base AS build-deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Existing dependencies...
+    # Add new build dependency here
+    new-build-tool \
+    && rm -rf /var/lib/apt/lists/*
+```
+
+#### Runtime Tools (Stage: runner)
+Add to the `runner` stage if the tool is needed in the final container:
+
+**For APT packages:**
+```dockerfile
+# In the runtime dependencies section (around line 230)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Existing packages...
+    # Add new runtime tool
+    sqlcmd \  # Example: MSSQL command line tools
+    && rm -rf /var/lib/apt/lists/*
+```
+
+**For tools requiring special installation (like AWS CLI, Node packages):**
+```dockerfile
+# Add as a separate RUN command after runtime dependencies
+# Example: AWS CLI v2
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \
+    unzip awscliv2.zip && \
+    ./aws/install && \
+    rm -rf awscliv2.zip aws/
+```
+
+### Examples for Common Additions
+
+#### Adding MSSQL Tools (Issue #14)
+```dockerfile
+# In runner stage, after base runtime dependencies:
+# Install Microsoft SQL Server command line tools
+RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - && \
+    curl https://packages.microsoft.com/config/ubuntu/22.04/prod.list > /etc/apt/sources.list.d/mssql-release.list && \
+    apt-get update && \
+    ACCEPT_EULA=Y apt-get install -y --no-install-recommends \
+    msodbcsql18 \
+    mssql-tools18 \
+    && rm -rf /var/lib/apt/lists/* && \
+    echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' >> /etc/profile.d/mssql.sh
+```
+
+#### Adding AWS CLI v2 and SSM Plugin (Issue #5)
+```dockerfile
+# In runner stage, as separate RUN command:
+# Install AWS CLI v2
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \
+    unzip awscliv2.zip && \
+    ./aws/install && \
+    rm -rf awscliv2.zip aws/
+
+# Install SSM Session Manager Plugin
+RUN curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "session-manager-plugin.deb" && \
+    dpkg -i session-manager-plugin.deb && \
+    rm session-manager-plugin.deb
+```
+
+### Best Practices
+
+1. **Group related installations** to minimize layers
+2. **Clean up after installation** with `rm -rf /var/lib/apt/lists/*` for apt
+3. **Use --no-install-recommends** to minimize image size
+4. **Add build arguments** for configurable versions:
+   ```dockerfile
+   ARG AWS_CLI_VERSION=latest
+   ```
+5. **Document each addition** with comments
+6. **Test incrementally** - build after each addition
+7. **Consider layer caching** - put frequently changing items last
+
+### Testing New Additions
+```bash
+# Build and test locally
+docker build -t test-image .
+docker run -it test-image /bin/bash
+
+# Inside container, verify tool installation
+which aws
+sqlcmd -?
+```
 
 ## Credentials and Configuration
 
@@ -179,10 +294,10 @@ psql -U babelfish_admin -d babelfish_db -c "SELECT name FROM sys.databases"
 - ✅ Backup/restore scripts
 - ✅ PostgreSQL VS Code extension
 - ✅ Security improvements (.gitignore)
+- ✅ Claude CLI integration (Issue #15)
+- ✅ Dockerfile multi-stage optimization (Issue #1)
 
 ### In Progress
-- 🔄 Claude CLI integration (Issue #15)
-- 🔄 Dockerfile multi-stage optimization (Issue #1)
 - 🔄 SSH server configuration (Issue #3)
 
 ### Planned
@@ -196,10 +311,11 @@ psql -U babelfish_admin -d babelfish_db -c "SELECT name FROM sys.databases"
 ## Important Notes
 
 - **Build time**: First build takes 30-60 minutes due to compiling Babelfish from source
-- **Caching**: Subsequent builds are faster due to Docker layer caching
+- **Caching**: Subsequent builds are faster due to Docker layer caching (optimized in PR #17 with 6-stage build)
 - **Volumes**: Database data persists in Docker volumes, survives container rebuilds
 - **Permissions**: Container runs as root initially to fix permissions, then switches to postgres
 - **Breaking changes**: For versions before `BABEL_5_2_0__PG_17_5`, use the `before-BABEL_5_2_0__PG_17_5` branch
+- **Dockerfile stages**: As of PR #17, uses 6 stages (base, build-deps, antlr-builder, postgres-builder, bbfdump-builder, runner)
 
 ## Working Guidelines
 
