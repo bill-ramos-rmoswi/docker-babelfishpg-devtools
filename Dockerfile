@@ -275,6 +275,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Install Microsoft SQL Server command line tools (Issue #14)
+# Note: sqlcmd requires -C flag for self-signed certificates
 RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - && \
     curl https://packages.microsoft.com/config/ubuntu/22.04/prod.list > /etc/apt/sources.list.d/mssql-release.list && \
     apt-get update && \
@@ -283,7 +284,9 @@ RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - && \
     mssql-tools18 \
     && rm -rf /var/lib/apt/lists/* && \
     echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' >> /etc/profile.d/mssql.sh && \
-    echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' >> /etc/bash.bashrc
+    echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' >> /etc/bash.bashrc && \
+    ln -s /opt/mssql-tools18/bin/sqlcmd /usr/local/bin/sqlcmd && \
+    ln -s /opt/mssql-tools18/bin/bcp /usr/local/bin/bcp
 
 # Copy and prepare helper scripts
 COPY backup_babelfish.sh restore_babelfish.sh pg_env.sh /tmp/
