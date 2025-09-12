@@ -23,6 +23,7 @@ The project includes VS Code DevContainer configuration for consistent developme
 
 - **Workspace**: `/workspace` in container → synced with host repository
 - **Data**: Persists in Docker volumes (`babelfish-data`, `babelfish-backups`)
+- **Windows Integration**: Host-mounted backup directory for Windows accessibility
 - **System changes**: Temporary unless added to Dockerfile
 
 ### Port Mappings (DevContainer)
@@ -32,6 +33,22 @@ The project includes VS Code DevContainer configuration for consistent developme
 | Babelfish TDS | 1433 | 3341 | SQL Server protocol |
 | PostgreSQL | 5432 | 2345 | Native PostgreSQL |
 | SSH | 22 | 2223 | Remote access |
+
+### Volume Locations and Windows Integration
+
+| Location Type | Container Path | Windows Path | WSL Path | Purpose |
+|---------------|----------------|--------------|----------|---------|
+| **Database Data** | `/var/lib/babelfish/data` | Docker Volume | Docker Volume | PostgreSQL database files |
+| **Docker Backups** | `/var/lib/babelfish/bbf_backups` | Docker Volume | Docker Volume | Container-only backups |
+| **Windows Backups** | `/var/lib/babelfish/windows_backups` | `C:\Users\%USERNAME%\bbf_backups` | `/mnt/c/Users/%USERNAME%/bbf_backups` | Host-accessible backups |
+| **Workspace** | `/workspace` | Project Directory | Project Directory | Source code and scripts |
+
+#### Windows Integration Features
+
+- **SQL Server-Style Management**: Windows batch scripts (`start_babelfish.bat`, `stop_babelfish.bat`, `reset_babelfish.bat`)
+- **Dual Backup System**: Both Docker volumes and Windows host-mounted directories
+- **Seamless Script Compatibility**: Existing backup/restore scripts work with Windows paths
+- **Permission Management**: Automated permission fixes for Windows/Docker integration
 
 ## Build Commands
 
@@ -180,6 +197,100 @@ psql -U babelfish_admin -d babelfish_db -c "SELECT name FROM sys.databases"
 
 ### In Progress
 - 🔄 Ensure backup_babelfish.sh and restore_babelfish.sh are simple to use for Windows users with Docker volumes (Issue #2)
+
+## Windows Integration Tools
+
+### Windows Batch Scripts
+
+The project includes SQL Server-style batch scripts for Windows users:
+
+| Script | Purpose | Usage |
+|--------|---------|--------|
+| `start_babelfish.bat` | Start Babelfish container | Double-click or run from Command Prompt |
+| `stop_babelfish.bat` | Stop Babelfish container | Graceful shutdown preserving data |
+| `reset_babelfish.bat` | Complete reset | ⚠️ **WARNING: Deletes all data!** |
+
+### Container Management Scripts
+
+Inside the container, new management scripts are available:
+
+| Script | Purpose | Usage |
+|--------|---------|--------|
+| `fix_permissions.sh` | Fix volume permissions | `./fix_permissions.sh --all` |
+| `reset_database.sh` | Reset database cluster | `./reset_database.sh --force` |
+| `windows_config.sh` | Configure environment | `source windows_config.sh` |
+
+### Backup and Restore Workflow
+
+#### Windows-Friendly Backup Process
+
+1. **From Windows Command Prompt:**
+   ```cmd
+   REM Start container if not running
+   start_babelfish.bat
+   
+   REM Create backup (inside container)
+   docker-compose exec babelfish backup_babelfish.sh my_database
+   ```
+
+2. **Backup files are automatically available at:**
+   - Windows: `C:\Users\%USERNAME%\bbf_backups\`
+   - WSL: `/mnt/c/Users/%USERNAME%/bbf_backups/`
+
+#### Windows-Friendly Restore Process
+
+1. **Place backup files in Windows directory:**
+   ```
+   C:\Users\%USERNAME%\bbf_backups\my_database\2024-01-15_1430\
+   ```
+
+2. **Restore from container:**
+   ```bash
+   # Inside container or via docker exec
+   restore_babelfish.sh my_database
+   ```
+
+### Environment Configuration
+
+Use `windows_config.sh` to set up proper environment variables:
+
+```bash
+# Inside container
+source windows_config.sh
+
+# Check backup locations
+show_backup_status
+
+# Switch between backup locations
+switch_backup_location windows  # Use Windows host mount
+switch_backup_location docker   # Use Docker volume
+```
+
+### Troubleshooting Windows Issues
+
+#### Permission Problems
+```cmd
+REM Fix all permissions (run as Administrator if needed)
+docker-compose exec --user root babelfish ./fix_permissions.sh --all
+```
+
+#### Backup Directory Issues
+```cmd
+REM Create Windows backup directory
+mkdir "C:\Users\%USERNAME%\bbf_backups"
+
+REM Fix Windows mount permissions
+docker-compose exec babelfish ./fix_permissions.sh --windows-backups
+```
+
+#### Container Reset
+```cmd
+REM Complete reset (deletes everything)
+reset_babelfish.bat
+
+REM Database-only reset (preserves container)
+docker-compose exec --user root babelfish ./reset_database.sh --force
+```
 
 
 ## Important Notes

@@ -8,8 +8,10 @@ services:
       - ..:/workspace:cached
       # Persist Babelfish data
       - babelfish-data:/var/lib/babelfish/data
-      # Persist backup directory
+      # Persist backup directory (Docker named volume)
       - babelfish-backups:/var/lib/babelfish/bbf_backups
+      # Windows-accessible backup directory (host mount)
+      - /mnt/c/Users/rmosw/bbf_backups:/var/lib/babelfish/windows_backups:rw
     environment:
       # PostgreSQL/Babelfish connection settings
       - PGHOST=localhost
@@ -19,6 +21,10 @@ services:
       - PGPASSWORD=secret_password
       # Babelfish TDS settings
       - BABELFISH_TDS_PORT=1433
+      # Backup directory settings
+      - BBF_DOCKER_BACKUPS=/var/lib/babelfish/bbf_backups
+      - BBF_WINDOWS_BACKUPS=/var/lib/babelfish/windows_backups
+      - BBF_HOST_BACKUP_PATH=/mnt/c/Users/rmosw/bbf_backups
       # Locale settings
       - LC_ALL=C
       - LANG=C

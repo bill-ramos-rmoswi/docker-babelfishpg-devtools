@@ -82,6 +82,78 @@ Assuming Babelfish is hosted on the local machine, using the default settings, a
 
 Database data is stored in the `/var/lib/babelfish/data` volume.
 
+## Windows Usage (SQL Server-Style Management)
+
+For Windows users, this project includes SQL Server-style batch scripts that provide familiar database management commands:
+
+### Quick Start for Windows
+
+1. **Start Babelfish**: Double-click `start_babelfish.bat` or run from Command Prompt
+2. **Stop Babelfish**: Double-click `stop_babelfish.bat` or run from Command Prompt  
+3. **Reset Database**: Double-click `reset_babelfish.bat` (⚠️ **WARNING: Deletes all data!**)
+
+### Windows Batch Scripts
+
+| Script | Purpose | Description |
+|--------|---------|-------------|
+| `start_babelfish.bat` | Start database | SQL Server-style startup with status display |
+| `stop_babelfish.bat` | Stop database | Graceful shutdown preserving data |
+| `reset_babelfish.bat` | Reset everything | Complete reset (⚠️ **deletes all data**) |
+
+### Windows Backup Integration
+
+Backups are automatically accessible from Windows at:
+- **Windows Path**: `C:\Users\%USERNAME%\bbf_backups\`
+- **WSL Path**: `/mnt/c/Users/%USERNAME%/bbf_backups/` 
+- **Docker Volume**: `babelfish-backups` (named volume)
+
+The existing `backup_babelfish.sh` and `restore_babelfish.sh` scripts work seamlessly with Windows paths when run inside the container.
+
+### Connection from Windows
+
+Use these connection details in SQL Server Management Studio (SSMS) or other SQL Server tools:
+
+```
+Server: localhost,3341
+Authentication: SQL Server Authentication
+Username: babelfish_admin
+Password: secret_password
+```
+
+**Connection String:**
+```
+Data Source=localhost,3341;Initial Catalog=babelfish_db;User ID=babelfish_admin;Password=secret_password;TrustServerCertificate=true;
+```
+
+### Troubleshooting Windows Issues
+
+#### Permission Problems
+```cmd
+REM Run from Windows Command Prompt as Administrator
+docker-compose exec --user root babelfish ./fix_permissions.sh --all
+```
+
+#### Container Won't Start
+```cmd
+REM Check Docker Desktop is running
+docker version
+
+REM Check container status  
+docker-compose ps
+
+REM View detailed logs
+docker-compose logs babelfish
+```
+
+#### Backup Directory Issues
+```cmd
+REM Ensure Windows backup directory exists
+mkdir "C:\Users\%USERNAME%\bbf_backups"
+
+REM Fix permissions inside container
+docker-compose exec babelfish ./fix_permissions.sh --windows-backups
+```
+
 ## Building Docker Image
 
 > [!IMPORTANT]
