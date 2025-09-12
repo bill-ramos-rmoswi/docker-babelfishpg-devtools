@@ -82,6 +82,125 @@ Assuming Babelfish is hosted on the local machine, using the default settings, a
 
 Database data is stored in the `/var/lib/babelfish/data` volume.
 
+## Windows Usage (SQL Server-Style Management)
+
+For Windows users, this project includes SQL Server-style batch scripts that provide familiar database management commands:
+
+### Quick Start for Windows
+
+1. **Start Babelfish**: Double-click `start_babelfish.bat` or run from Command Prompt
+2. **Stop Babelfish**: Double-click `stop_babelfish.bat` or run from Command Prompt  
+3. **Reset Database**: Double-click `reset_babelfish.bat` (⚠️ **WARNING: Deletes all data!**)
+
+### Windows Batch Scripts
+
+| Script | Purpose | Description |
+|--------|---------|-------------|
+| `start_babelfish.bat` | Start database | SQL Server-style startup with status display |
+| `stop_babelfish.bat` | Stop database | Graceful shutdown preserving data |
+| `reset_babelfish.bat` | Reset everything | Complete reset (⚠️ **deletes all data**) |
+
+### Windows Backup Integration
+
+Backups are automatically accessible from Windows at:
+- **Windows Path**: `C:\Users\%USERNAME%\bbf_backups\`
+- **WSL Path**: `/mnt/c/Users/%USERNAME%/bbf_backups/` 
+- **Docker Volume**: `babelfish-backups` (named volume)
+
+The existing `backup_babelfish.sh` and `restore_babelfish.sh` scripts work seamlessly with Windows paths when run inside the container.
+
+### Credential Management (.env File)
+
+For security and flexibility, all database credentials are managed through a `.env` file:
+
+#### Setup Instructions
+
+1. **Copy the template:**
+   ```cmd
+   cd .devcontainer
+   copy .env.example .env
+   ```
+
+2. **Customize credentials:** Edit `.env` with your preferred values:
+   ```env
+   PGUSER=your_username
+   PGPASSWORD=your_secure_password
+   PGDATABASE=your_database_name
+   ```
+
+3. **Security reminder:** Never commit `.env` files to version control!
+
+#### Default Development Credentials
+
+The default `.env` file contains:
+- **Username**: `babelfish_admin`
+- **Password**: `Dev2024_BabelfishSecure!` (change this!)
+- **Database**: `babelfish_db`
+
+#### Environment Variables
+
+All scripts automatically source the `.env` file for these variables:
+- `PGUSER`, `PGPASSWORD`, `PGDATABASE` - Database connection
+- `ADMIN_USERNAME`, `ADMIN_PASSWORD` - Container initialization
+- `BBF_HOST_BACKUP_PATH` - Windows backup location
+
+### Connection from Windows
+
+Use these connection details in SQL Server Management Studio (SSMS) or other SQL Server tools:
+
+**Using Default Credentials:**
+```
+Server: localhost,3341
+Authentication: SQL Server Authentication
+Username: babelfish_admin
+Password: Dev2024_BabelfishSecure!
+Database: babelfish_db
+```
+
+**Using Your Custom Credentials:**
+Check your `.devcontainer/.env` file for the actual values:
+```
+Server: localhost,3341
+Username: [value of PGUSER in .env]
+Password: [value of PGPASSWORD in .env]
+Database: [value of PGDATABASE in .env]
+```
+
+**Connection String Template:**
+```
+Data Source=localhost,3341;Initial Catalog=babelfish_db;User ID=babelfish_admin;Password=Dev2024_BabelfishSecure!;TrustServerCertificate=true;
+```
+*(Replace with your actual credentials from .env file)*
+
+### Troubleshooting Windows Issues
+
+#### Permission Problems
+```cmd
+REM Run from Windows Command Prompt as Administrator
+docker-compose exec --user root babelfish ./fix_permissions.sh --all
+```
+
+#### Container Won't Start
+```cmd
+REM Check Docker Desktop is running
+docker version
+
+REM Check container status  
+docker-compose ps
+
+REM View detailed logs
+docker-compose logs babelfish
+```
+
+#### Backup Directory Issues
+```cmd
+REM Ensure Windows backup directory exists
+mkdir "C:\Users\%USERNAME%\bbf_backups"
+
+REM Fix permissions inside container
+docker-compose exec babelfish ./fix_permissions.sh --windows-backups
+```
+
 ## Building Docker Image
 
 > [!IMPORTANT]
