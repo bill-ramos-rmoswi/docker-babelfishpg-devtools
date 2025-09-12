@@ -1,9 +1,14 @@
 # Environment and secrets
 .env
 .envrc
-*.env
+# Allow .env.example templates but ignore actual .env files
+.env.local
+.env.production
+.env.development
+.env.test
 *.envrc
 .env.*
+!.env.example
 .envrc.*
 
 # GitHub tokens and credentials

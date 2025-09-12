@@ -110,22 +110,59 @@ docker-compose -f .devcontainer/docker-compose.yml up
 
 ## Credentials and Configuration
 
-### Updated Default Credentials
+### Environment-Based Credential Management
+
+All database credentials are now managed through a `.env` file for security and flexibility:
+
+#### Default Development Credentials (from .env file)
 - **Username**: `babelfish_admin` (superuser)
-- **Password**: `secret_password`
+- **Password**: `Dev2024_BabelfishSecure!` (change this in production!)
 - **Database**: `babelfish_db`
 - **Migration mode**: `multi-db`
 
+#### .env File Configuration
+
+**Location**: `.devcontainer/.env` (not committed to repository)
+
+**Key Variables:**
+```env
+# Database connection
+PGUSER=babelfish_admin
+PGPASSWORD=Dev2024_BabelfishSecure!
+PGDATABASE=babelfish_db
+
+# Container initialization  
+ADMIN_USERNAME=babelfish_admin
+ADMIN_PASSWORD=Dev2024_BabelfishSecure!
+ADMIN_DATABASE=babelfish_db
+
+# Network and backup settings
+BABELFISH_TDS_PORT=1433
+BBF_HOST_BACKUP_PATH=/mnt/c/Users/rmosw/bbf_backups
+```
+
+**Setup:** Copy `.env.example` to `.env` and customize for your environment.
+
+#### Security Best Practices
+- ✅ `.env` files are excluded from version control
+- ✅ All scripts source `.env` automatically
+- ✅ Use strong, unique passwords in production
+- ✅ Regularly rotate credentials
+- ⚠️ Never commit `.env` files or share them
+
 ### Connection Examples
 ```bash
-# From host machine (DevContainer running)
+# From host machine (DevContainer running) - uses .env credentials
 psql -h localhost -p 2345 -U babelfish_admin -d babelfish_db
 
-# SQL Server tools (when installed)
-sqlcmd -S localhost,3341 -U babelfish_admin -P secret_password
+# SQL Server tools (when installed) - uses .env credentials
+sqlcmd -S localhost,3341 -U babelfish_admin -P Dev2024_BabelfishSecure!
 
-# Inside container
+# Inside container - credentials from .env automatically loaded
 psql -U babelfish_admin -d babelfish_db
+
+# Check current credentials from .env
+source /workspace/.devcontainer/.env && echo "User: $PGUSER, Database: $PGDATABASE"
 ```
 
 ## Common Issues and Solutions

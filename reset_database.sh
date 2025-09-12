@@ -9,6 +9,31 @@
 
 set -e
 
+# Source .env file if it exists for credential management
+if [ -f "/workspace/.devcontainer/.env" ]; then
+    set -o allexport
+    source /workspace/.devcontainer/.env
+    set +o allexport
+elif [ -f "/workspace/.env" ]; then
+    set -o allexport
+    source /workspace/.env
+    set +o allexport
+elif [ -f "$(dirname "$0")/.devcontainer/.env" ]; then
+    set -o allexport
+    source "$(dirname "$0")/.devcontainer/.env"
+    set +o allexport
+elif [ -f "$(dirname "$0")/.env" ]; then
+    set -o allexport
+    source "$(dirname "$0")/.env"
+    set +o allexport
+fi
+
+# Set default credentials from environment or fallbacks
+RESET_ADMIN_USER=${ADMIN_USERNAME:-babelfish_admin}
+RESET_ADMIN_PASSWORD=${ADMIN_PASSWORD:-Dev2024_BabelfishSecure!}
+RESET_ADMIN_DATABASE=${ADMIN_DATABASE:-babelfish_db}
+RESET_MIGRATION_MODE=${MIGRATION_MODE:-multi-db}
+
 show_help() {
     cat << EOF
 reset_database.sh - Reset Babelfish database cluster
@@ -300,20 +325,20 @@ for i in $(seq 1 30); do
 done
 
 # Initialize Babelfish
-log_verbose "Creating babelfish_admin user and initializing Babelfish"
-su - postgres -c "${BABELFISH_BIN}/psql -U postgres -d postgres" << 'EOF'
-CREATE USER babelfish_admin WITH SUPERUSER CREATEDB CREATEROLE PASSWORD 'secret_password' INHERIT;
-DROP DATABASE IF EXISTS babelfish_db;
-CREATE DATABASE babelfish_db OWNER babelfish_admin;
-\c babelfish_db
+log_verbose "Creating ${RESET_ADMIN_USER} user and initializing Babelfish"
+su - postgres -c "${BABELFISH_BIN}/psql -U postgres -d postgres" << EOF
+CREATE USER ${RESET_ADMIN_USER} WITH SUPERUSER CREATEDB CREATEROLE PASSWORD '${RESET_ADMIN_PASSWORD}' INHERIT;
+DROP DATABASE IF EXISTS ${RESET_ADMIN_DATABASE};
+CREATE DATABASE ${RESET_ADMIN_DATABASE} OWNER ${RESET_ADMIN_USER};
+\c ${RESET_ADMIN_DATABASE}
 CREATE EXTENSION IF NOT EXISTS "babelfishpg_tds" CASCADE;
-GRANT ALL ON SCHEMA sys to babelfish_admin;
-ALTER USER babelfish_admin CREATEDB;
-ALTER SYSTEM SET babelfishpg_tsql.database_name = 'babelfish_db';
+GRANT ALL ON SCHEMA sys to ${RESET_ADMIN_USER};
+ALTER USER ${RESET_ADMIN_USER} CREATEDB;
+ALTER SYSTEM SET babelfishpg_tsql.database_name = '${RESET_ADMIN_DATABASE}';
 SELECT pg_reload_conf();
-ALTER DATABASE babelfish_db SET babelfishpg_tsql.migration_mode = 'multi-db';
+ALTER DATABASE ${RESET_ADMIN_DATABASE} SET babelfishpg_tsql.migration_mode = '${RESET_MIGRATION_MODE}';
 SELECT pg_reload_conf();
-CALL SYS.INITIALIZE_BABELFISH('babelfish_admin');
+CALL SYS.INITIALIZE_BABELFISH('${RESET_ADMIN_USER}');
 EOF
 
 echo "✓ Babelfish initialized"
@@ -324,10 +349,10 @@ echo "Database Reset Complete!"
 echo "=================================================================================="
 echo
 echo "Fresh database cluster initialized with:"
-echo "  • Username: babelfish_admin"
-echo "  • Password: secret_password"
-echo "  • Database: babelfish_db"
-echo "  • Migration mode: multi-db"
+echo "  • Username: ${RESET_ADMIN_USER}"
+echo "  • Password: ${RESET_ADMIN_PASSWORD}"
+echo "  • Database: ${RESET_ADMIN_DATABASE}"
+echo "  • Migration mode: ${RESET_MIGRATION_MODE}"
 echo
 echo "Connection Information:"
 echo "  • SQL Server (TDS): localhost:1433"

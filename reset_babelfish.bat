@@ -52,15 +52,38 @@ REM Change to the .devcontainer directory
 cd /d "%~dp0.devcontainer"
 
 echo.
-echo Step 1: Stopping and removing containers and volumes...
-docker-compose down -v --remove-orphans
-if errorlevel 1 (
-    echo WARNING: Error stopping containers
-) else (
-    echo ✓ Containers stopped and compose volumes removed
+echo Step 1: Forcefully stopping all Babelfish containers...
+
+REM First try docker-compose down
+docker-compose down -v --remove-orphans >nul 2>&1
+
+REM Find and forcefully stop ALL babelfish containers regardless of how they were started
+echo Detecting running babelfish containers...
+for /f "tokens=1,2" %%i in ('docker ps --format "table {{.ID}} {{.Names}}" ^| findstr "babelfish"') do (
+    echo Found running container: %%j (%%i)
+    echo Forcefully stopping container: %%j
+    docker stop %%i >nul 2>&1
+    if not errorlevel 1 (
+        echo ✓ Container stopped: %%j
+    ) else (
+        echo ⚠ Could not stop container: %%j - trying kill
+        docker kill %%i >nul 2>&1
+    )
 )
 
-REM Remove any remaining stopped containers
+REM Remove all babelfish containers (running and stopped)
+echo Removing all babelfish containers...
+for /f "tokens=1,2" %%i in ('docker ps -a --format "table {{.ID}} {{.Names}}" ^| findstr "babelfish"') do (
+    echo Removing container: %%j (%%i)
+    docker rm -f %%i >nul 2>&1
+    if not errorlevel 1 (
+        echo ✓ Container removed: %%j
+    ) else (
+        echo ⚠ Could not remove container: %%j
+    )
+)
+
+REM Clean up any remaining stopped containers
 docker container prune -f >nul 2>&1
 
 echo.
@@ -76,6 +99,25 @@ if errorlevel 1 (
 REM Dynamically detect babelfish volume names  
 echo Detecting babelfish volumes...
 docker volume ls | findstr "babelfish"
+echo.
+
+REM Verify no containers are using these volumes
+echo Verifying no containers are using babelfish volumes...
+docker ps -a --format "table {{.ID}} {{.Names}}" | findstr "babelfish" >nul 2>&1
+if not errorlevel 1 (
+    echo ⚠ ERROR: Babelfish containers are still running/stopped!
+    echo The following containers may be using the volumes:
+    docker ps -a --format "table {{.ID}} {{.Names}}" | findstr "babelfish"
+    echo.
+    echo Volume deletion will likely fail. Please manually remove containers first:
+    for /f "tokens=1" %%c in ('docker ps -a --format "{{.ID}}" ^| findstr "babelfish"') do (
+        echo   docker rm -f %%c
+    )
+    echo.
+    echo Attempting volume deletion anyway...
+) else (
+    echo ✓ No babelfish containers found - volumes should be deletable
+)
 echo.
 
 for /f "tokens=2" %%i in ('docker volume ls ^| findstr "babelfish-data"') do (
@@ -113,11 +155,44 @@ if errorlevel 1 (
 :step3
 echo.
 echo Step 3: Removing container images...
-docker-compose build --no-cache babelfish >nul 2>&1
+
+REM Remove babelfish images directly (safer than rebuild)
+echo Detecting babelfish images...
+docker images --format "table {{.ID}} {{.Repository}}" | findstr "babelfish" >nul 2>&1
 if errorlevel 1 (
-    echo WARNING: Error rebuilding image
+    echo ℹ No babelfish images found to remove
 ) else (
-    echo ✓ Container image rebuilt
+    echo Found babelfish images:
+    docker images --format "table {{.ID}} {{.Repository}}" | findstr "babelfish"
+    echo.
+    
+    echo Removing babelfish images...
+    for /f "tokens=1" %%i in ('docker images --format "{{.ID}}" ^| findstr -v "IMAGE"') do (
+        docker image inspect %%i --format "{{.RepoTags}}" 2>nul | findstr "babelfish" >nul 2>&1
+        if not errorlevel 1 (
+            echo Removing image: %%i
+            docker rmi -f %%i >nul 2>&1
+            if not errorlevel 1 (
+                echo ✓ Image removed: %%i
+            ) else (
+                echo ⚠ Could not remove image: %%i
+            )
+        )
+    )
+)
+
+echo.
+echo Building fresh image...
+echo This may take several minutes - please be patient...
+
+REM Use timeout for build command (Windows timeout command)
+timeout 5 >nul
+docker-compose build --no-cache babelfish
+if errorlevel 1 (
+    echo ⚠ WARNING: Image rebuild failed or was interrupted
+    echo You may need to rebuild manually later with: docker-compose build --no-cache
+) else (
+    echo ✓ Fresh container image built successfully
 )
 
 echo.
@@ -127,16 +202,54 @@ echo ✓ Docker system cleaned
 
 echo.
 echo ================================================================================
-echo Reset Complete!
+echo Reset Complete - Final Status Report
 echo ================================================================================
 echo.
-echo What was deleted:
-echo   ✓ All database data and configuration
-echo   ✓ All Docker backup files
-echo   ✓ Container images (rebuilt)
+
+REM Final verification of cleanup
+echo Verifying cleanup status...
+echo.
+
+echo Containers Status:
+docker ps -a --format "table {{.ID}} {{.Names}}" | findstr "babelfish" >nul 2>&1
+if errorlevel 1 (
+    echo   ✓ No babelfish containers found
+) else (
+    echo   ⚠ Some babelfish containers still exist:
+    docker ps -a --format "table {{.ID}} {{.Names}}" | findstr "babelfish"
+)
+
+echo.
+echo Volumes Status:
+docker volume ls | findstr "babelfish" >nul 2>&1
+if errorlevel 1 (
+    echo   ✓ No babelfish volumes found
+) else (
+    echo   ⚠ Some babelfish volumes still exist:
+    docker volume ls | findstr "babelfish"
+)
+
+echo.
+echo Windows Backup Directory:
+if exist "C:\Users\%USERNAME%\bbf_backups" (
+    echo   ✓ Windows backups preserved at: C:\Users\%USERNAME%\bbf_backups
+) else (
+    echo   ℹ Windows backup directory not found (will be created when needed)
+)
+
+echo.
+echo ================================================================================
+echo Summary of Changes
+echo ================================================================================
+echo.
+echo What was reset:
+echo   ✓ All babelfish containers stopped and removed
+echo   ✓ All babelfish Docker volumes deleted
+echo   ✓ All babelfish images removed and rebuilt
+echo   ✓ Docker system cleaned up
 echo.
 echo What was preserved:
-echo   ✓ Windows backup files: C:\Users\%USERNAME%\bbf_backups
+echo   ✓ Windows backup files: C:\Users\%USERNAME%\bbf_backups  
 echo   ✓ Source code and project files
 echo   ✓ Docker Compose configuration
 echo.

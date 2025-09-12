@@ -3,6 +3,24 @@ BABELFISH_HOME=/opt/babelfish
 BABELFISH_DATA=/var/lib/babelfish/data
 BABELFISH_BIN=${BABELFISH_HOME}/bin
 
+# Source .env file if it exists in workspace
+if [ -f "/workspace/.devcontainer/.env" ]; then
+    echo "Loading environment variables from .env file..."
+    # Export variables from .env file (skip comments and empty lines)
+    set -o allexport
+    source /workspace/.devcontainer/.env
+    set +o allexport
+    echo "Environment variables loaded successfully"
+elif [ -f "/workspace/.env" ]; then
+    echo "Loading environment variables from workspace .env file..."
+    set -o allexport
+    source /workspace/.env
+    set +o allexport
+    echo "Environment variables loaded successfully"
+else
+    echo "Warning: No .env file found. Using hardcoded defaults."
+fi
+
 # Set up environment
 export PATH=$PATH:${BABELFISH_BIN}
 export PGDATA=${BABELFISH_DATA}
@@ -22,11 +40,11 @@ if ! command -v psql >/dev/null 2>&1; then
     exit 1
 fi
 
-# Set default argument values
-USERNAME=babelfish_admin
-PASSWORD=secret_password
-DATABASE=babelfish_db
-MIGRATION_MODE=multi-db
+# Set default argument values (from .env file or fallback to hardcoded)
+USERNAME=${ADMIN_USERNAME:-babelfish_admin}
+PASSWORD=${ADMIN_PASSWORD:-Dev2024_BabelfishSecure!}
+DATABASE=${ADMIN_DATABASE:-babelfish_db}
+MIGRATION_MODE=${MIGRATION_MODE:-multi-db}
 
 # Populate argument values from command
 while getopts u:p:d:m: flag; do

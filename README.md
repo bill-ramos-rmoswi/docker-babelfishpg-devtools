@@ -109,21 +109,68 @@ Backups are automatically accessible from Windows at:
 
 The existing `backup_babelfish.sh` and `restore_babelfish.sh` scripts work seamlessly with Windows paths when run inside the container.
 
+### Credential Management (.env File)
+
+For security and flexibility, all database credentials are managed through a `.env` file:
+
+#### Setup Instructions
+
+1. **Copy the template:**
+   ```cmd
+   cd .devcontainer
+   copy .env.example .env
+   ```
+
+2. **Customize credentials:** Edit `.env` with your preferred values:
+   ```env
+   PGUSER=your_username
+   PGPASSWORD=your_secure_password
+   PGDATABASE=your_database_name
+   ```
+
+3. **Security reminder:** Never commit `.env` files to version control!
+
+#### Default Development Credentials
+
+The default `.env` file contains:
+- **Username**: `babelfish_admin`
+- **Password**: `Dev2024_BabelfishSecure!` (change this!)
+- **Database**: `babelfish_db`
+
+#### Environment Variables
+
+All scripts automatically source the `.env` file for these variables:
+- `PGUSER`, `PGPASSWORD`, `PGDATABASE` - Database connection
+- `ADMIN_USERNAME`, `ADMIN_PASSWORD` - Container initialization
+- `BBF_HOST_BACKUP_PATH` - Windows backup location
+
 ### Connection from Windows
 
 Use these connection details in SQL Server Management Studio (SSMS) or other SQL Server tools:
 
+**Using Default Credentials:**
 ```
 Server: localhost,3341
 Authentication: SQL Server Authentication
 Username: babelfish_admin
-Password: secret_password
+Password: Dev2024_BabelfishSecure!
+Database: babelfish_db
 ```
 
-**Connection String:**
+**Using Your Custom Credentials:**
+Check your `.devcontainer/.env` file for the actual values:
 ```
-Data Source=localhost,3341;Initial Catalog=babelfish_db;User ID=babelfish_admin;Password=secret_password;TrustServerCertificate=true;
+Server: localhost,3341
+Username: [value of PGUSER in .env]
+Password: [value of PGPASSWORD in .env]
+Database: [value of PGDATABASE in .env]
 ```
+
+**Connection String Template:**
+```
+Data Source=localhost,3341;Initial Catalog=babelfish_db;User ID=babelfish_admin;Password=Dev2024_BabelfishSecure!;TrustServerCertificate=true;
+```
+*(Replace with your actual credentials from .env file)*
 
 ### Troubleshooting Windows Issues
 

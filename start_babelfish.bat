@@ -45,6 +45,35 @@ echo Please wait while the container initializes...
 REM Change to the .devcontainer directory
 cd /d "%~dp0.devcontainer"
 
+REM Check if .env file exists - required for credentials
+if not exist ".env" (
+    echo.
+    echo ⚠️  CONFIGURATION REQUIRED: .env file not found
+    echo.
+    echo The .env file contains database credentials and is required to start Babelfish.
+    echo Please create .env file in the .devcontainer directory.
+    echo.
+    echo Option 1 - Copy from template:
+    echo   copy .env.example .env
+    echo   Edit .env with your preferred credentials
+    echo.
+    echo Option 2 - Create minimal .env file:
+    echo   echo PGUSER=babelfish_admin ^> .env
+    echo   echo PGPASSWORD=YourSecurePassword123! ^>^> .env
+    echo   echo PGDATABASE=babelfish_db ^>^> .env
+    echo   echo ADMIN_USERNAME=babelfish_admin ^>^> .env
+    echo   echo ADMIN_PASSWORD=YourSecurePassword123! ^>^> .env
+    echo   echo ADMIN_DATABASE=babelfish_db ^>^> .env
+    echo.
+    echo ⚠️  SECURITY NOTE: Never commit .env files to version control!
+    echo.
+    pause
+    exit /b 1
+)
+
+echo ✓ Environment configuration (.env) found
+echo.
+
 REM Start the container using docker-compose
 docker-compose up -d
 

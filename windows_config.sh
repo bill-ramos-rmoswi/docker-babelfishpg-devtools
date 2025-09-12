@@ -22,12 +22,37 @@ echo "Container: $IN_CONTAINER"
 echo "User: $CONTAINER_USER"
 echo
 
-# Database connection settings (from docker-compose environment)
+# Source .env file if it exists for credential management
+if [[ -f "/workspace/.devcontainer/.env" ]]; then
+    echo "Loading environment from /workspace/.devcontainer/.env"
+    set -o allexport
+    source /workspace/.devcontainer/.env
+    set +o allexport
+elif [[ -f "/workspace/.env" ]]; then
+    echo "Loading environment from /workspace/.env"
+    set -o allexport
+    source /workspace/.env
+    set +o allexport
+elif [[ -f "$(dirname "$0")/.devcontainer/.env" ]]; then
+    echo "Loading environment from local .devcontainer/.env"
+    set -o allexport
+    source "$(dirname "$0")/.devcontainer/.env"
+    set +o allexport
+elif [[ -f "$(dirname "$0")/.env" ]]; then
+    echo "Loading environment from local .env"
+    set -o allexport
+    source "$(dirname "$0")/.env"
+    set +o allexport
+else
+    echo "Warning: No .env file found. Using hardcoded fallbacks."
+fi
+
+# Database connection settings (from .env file or docker-compose environment)
 export PGHOST=${PGHOST:-localhost}
 export PGPORT=${PGPORT:-5432}
 export PGDATABASE=${PGDATABASE:-babelfish_db}
 export PGUSER=${PGUSER:-babelfish_admin}
-export PGPASSWORD=${PGPASSWORD:-secret_password}
+export PGPASSWORD=${PGPASSWORD:-Dev2024_BabelfishSecure!}
 
 # Babelfish paths
 export BABELFISH_HOME=${BABELFISH_HOME:-/opt/babelfish}
