@@ -14,7 +14,7 @@ Before starting, ensure you have:
 - ✅ **SQL Server Management Studio (SSMS)** installed
 - ✅ **VS Code** or **Cursor** installed
 - ✅ **AWS CLI** configured (for S3 downloads)
-- ✅ **This repository** cloned to your Windows machine
+- ✅ **This repository** cloned to your Windows machine - https://github.com/bill-ramos-rmoswi/docker-babelfishpg-devtools.git
 
 ---
 
