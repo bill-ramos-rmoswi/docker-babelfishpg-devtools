@@ -54,7 +54,9 @@
       "Bash(\"$GH\" pr comment 17 --body \"## CLAUDE.md Documentation Added\n\nUpdated CLAUDE.md with comprehensive guidance for the new Dockerfile structure:\n\n### 📚 What''s Documented:\n- **6-stage build pattern** with detailed descriptions\n- **Where to add new tools** (build-deps vs runner stage)\n- **Concrete examples** for upcoming features:\n  - MSSQL tools installation (Issue #14)\n  - AWS CLI v2 and SSM Plugin (Issue #5)\n- **Best practices** for maintaining the pattern\n- **Testing instructions** for new additions\n\n### 🎯 Purpose:\nThis ensures future Claude instances (and developers) understand how to properly add new tools following the optimized multi-stage pattern, maintaining consistency and build efficiency.\n\n### 📝 Example Usage:\nWhen implementing Issue #14 (MSSQL tools) or Issue #5 (AWS CLI), the instructions are now clearly documented with copy-paste ready code snippets showing exactly where and how to add these tools in the Dockerfile.\n\nThe PR is ready for review and testing!\" -R $REPO)",
       "Bash(docker build:*)",
       "Bash(docker tag:*)",
-      "Bash(docker network:*)"
+      "Bash(docker network:*)",
+      "Bash(\"$GH\" pr view 20 -R $REPO --json state,title,url)",
+      "Bash(docker container inspect:*)"
     ],
     "deny": [],
     "ask": []
