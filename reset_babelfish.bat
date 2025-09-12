@@ -52,30 +52,65 @@ REM Change to the .devcontainer directory
 cd /d "%~dp0.devcontainer"
 
 echo.
-echo Step 1: Stopping and removing containers...
+echo Step 1: Stopping and removing containers and volumes...
 docker-compose down -v --remove-orphans
 if errorlevel 1 (
     echo WARNING: Error stopping containers
 ) else (
-    echo ✓ Containers stopped and removed
+    echo ✓ Containers stopped and compose volumes removed
 )
+
+REM Remove any remaining stopped containers
+docker container prune -f >nul 2>&1
 
 echo.
-echo Step 2: Removing Docker volumes...
-docker volume rm docker-babelfishpg-devtools_babelfish-data 2>nul
-if not errorlevel 1 (
-    echo ✓ Database volume removed
-) else (
-    echo ℹ Database volume not found or already removed
+echo Step 2: Detecting and removing Docker volumes...
+
+REM Check if any babelfish volumes exist
+docker volume ls | findstr "babelfish" >nul 2>&1
+if errorlevel 1 (
+    echo ℹ No babelfish volumes found - nothing to remove
+    goto step3
 )
 
-docker volume rm docker-babelfishpg-devtools_babelfish-backups 2>nul  
-if not errorlevel 1 (
-    echo ✓ Backup volume removed
-) else (
-    echo ℹ Backup volume not found or already removed
+REM Dynamically detect babelfish volume names  
+echo Detecting babelfish volumes...
+docker volume ls | findstr "babelfish"
+echo.
+
+for /f "tokens=2" %%i in ('docker volume ls ^| findstr "babelfish-data"') do (
+    set "DATA_VOLUME=%%i"
+    echo Found data volume: %%i
+    docker volume rm -f "%%i" >nul 2>&1
+    if not errorlevel 1 (
+        echo ✓ Database volume removed: %%i
+    ) else (
+        echo ⚠ Could not remove database volume: %%i
+    )
 )
 
+for /f "tokens=2" %%i in ('docker volume ls ^| findstr "babelfish-backups"') do (
+    set "BACKUP_VOLUME=%%i"
+    echo Found backup volume: %%i
+    docker volume rm -f "%%i" >nul 2>&1
+    if not errorlevel 1 (
+        echo ✓ Backup volume removed: %%i
+    ) else (
+        echo ⚠ Could not remove backup volume: %%i
+    )
+)
+
+REM Check if any volumes were found
+docker volume ls | findstr "babelfish" >nul 2>&1
+if errorlevel 1 (
+    echo ✓ All babelfish volumes successfully removed
+) else (
+    echo ⚠ Some babelfish volumes may still exist - manual cleanup may be needed:
+    docker volume ls | findstr "babelfish"
+    echo   Try running: docker volume prune -f
+)
+
+:step3
 echo.
 echo Step 3: Removing container images...
 docker-compose build --no-cache babelfish >nul 2>&1
