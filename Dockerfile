@@ -169,7 +169,8 @@ RUN dos2unix /tmp/backup_babelfish.sh /tmp/restore_babelfish.sh /tmp/pg_env.sh &
     chmod +x /usr/bin/backup_babelfish.sh /usr/bin/restore_babelfish.sh /etc/profile.d/pg_env.sh
 
 # Create backup directory structure
-RUN mkdir -p /var/lib/babelfish/bbf_backups
+RUN mkdir -p /var/lib/babelfish/bbf_backups && \
+    mkdir -p /home/postgres/bbf_backups
 
 # Install runtime dependencies
 RUN apt update && apt install -y --no-install-recommends\
@@ -195,7 +196,9 @@ RUN sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so
 # Set up postgres user directories
 RUN mkdir -p ${POSTGRES_USER_HOME} && \
     chown -R postgres:postgres ${BABELFISH_HOME} && \
-    chown -R postgres:postgres ${POSTGRES_USER_HOME}
+    chown -R postgres:postgres ${POSTGRES_USER_HOME} && \
+    chown -R postgres:postgres /home/postgres/bbf_backups && \
+    chmod 755 /home/postgres/bbf_backups
 RUN echo "postgres ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
 # Expose SSH port

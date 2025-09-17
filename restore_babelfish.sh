@@ -161,7 +161,14 @@ fi
 
 # Auto-discover backup files if not specified
 if [[ -z "$ROLES_FILE" || -z "$DB_FILE" ]]; then
-    BACKUP_BASE_DIR="$HOME/bbf_backups"
+    # Check for Windows-mounted backup directory first, then fall back to Docker volume
+    if [[ -d "/home/postgres/bbf_backups" ]]; then
+        BACKUP_BASE_DIR="/home/postgres/bbf_backups"
+    elif [[ -d "$HOME/bbf_backups" ]]; then
+        BACKUP_BASE_DIR="$HOME/bbf_backups"
+    else
+        BACKUP_BASE_DIR="/var/lib/babelfish/bbf_backups"
+    fi
     DB_BACKUP_DIR="$BACKUP_BASE_DIR/$BBF_DATABASE_NAME"
     
     if [[ ! -d "$DB_BACKUP_DIR" ]]; then

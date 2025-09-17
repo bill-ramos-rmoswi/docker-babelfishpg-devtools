@@ -30,6 +30,16 @@ if [ "$(id -u)" = "0" ]; then
     echo "Fixing permissions on data directory..."
     chown -R postgres:postgres ${BABELFISH_DATA}
     chmod 700 ${BABELFISH_DATA}
+    
+    # Ensure backup directories exist and have proper permissions
+    echo "Setting up backup directories..."
+    mkdir -p /home/postgres/bbf_backups
+    chown -R postgres:postgres /home/postgres/bbf_backups
+    chmod 755 /home/postgres/bbf_backups
+    
+    mkdir -p /var/lib/babelfish/bbf_backups
+    chown -R postgres:postgres /var/lib/babelfish/bbf_backups
+    chmod 755 /var/lib/babelfish/bbf_backups
 fi
 
 # TODO - Add BabelfishDump verification when it's working

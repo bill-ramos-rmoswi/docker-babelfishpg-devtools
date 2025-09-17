@@ -12,31 +12,33 @@ services:
       - babelfish-data:/var/lib/babelfish/data
       # Persist backup directory (Docker named volume)
       - babelfish-backups:/var/lib/babelfish/bbf_backups
-      # Windows-accessible backup directory (host mount - from .env file)
-      - ${BBF_HOST_BACKUP_PATH}:/var/lib/babelfish/windows_backups:rw
+      # Windows-accessible backup directory (host mount)
+      # This maps Windows C:\Users\%USERNAME%\bbf_backups to container /home/postgres/bbf_backups
+      # For WSL: Use /mnt/c/Users/${USERNAME}/bbf_backups
+      - /mnt/c/Users/rmosw/bbf_backups:/home/postgres/bbf_backups:rw
     environment:
-      # PostgreSQL/Babelfish connection settings (from .env file)
-      - PGHOST=${PGHOST}
-      - PGPORT=${PGPORT}
-      - PGDATABASE=${PGDATABASE}
-      - PGUSER=${PGUSER}
-      - PGPASSWORD=${PGPASSWORD}
-      # Container initialization settings (from .env file)
-      - ADMIN_USERNAME=${ADMIN_USERNAME}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
-      - ADMIN_DATABASE=${ADMIN_DATABASE}
-      - MIGRATION_MODE=${MIGRATION_MODE}
-      # Babelfish TDS settings (from .env file)
-      - BABELFISH_TDS_PORT=${BABELFISH_TDS_PORT}
-      # Backup directory settings (from .env file)
-      - BBF_DOCKER_BACKUPS=${BBF_DOCKER_BACKUPS}
-      - BBF_WINDOWS_BACKUPS=${BBF_WINDOWS_BACKUPS}
-      - BBF_HOST_BACKUP_PATH=${BBF_HOST_BACKUP_PATH}
-      - TARGET_PGHOST=${TARGET_PGHOST}
-      # Locale settings (from .env file)
-      - LC_ALL=${LC_ALL}
-      - LANG=${LANG}
-      - LANGUAGE=${LANGUAGE}
+      # PostgreSQL/Babelfish connection settings
+      - PGHOST=${PGHOST:-localhost}
+      - PGPORT=${PGPORT:-5432}
+      - PGDATABASE=${PGDATABASE:-babelfish_db}
+      - PGUSER=${PGUSER:-babelfish_admin}
+      - PGPASSWORD=${BABELFISH_PASSWORD:-Dev2024_BabelfishSecure!}
+      # Container initialization settings (same as PG credentials)
+      - ADMIN_USERNAME=${PGUSER:-babelfish_admin}
+      - ADMIN_PASSWORD=${BABELFISH_PASSWORD:-Dev2024_BabelfishSecure!}
+      - ADMIN_DATABASE=${PGDATABASE:-babelfish_db}
+      - MIGRATION_MODE=${MIGRATION_MODE:-multi-db}
+      # Babelfish TDS settings
+      - BABELFISH_TDS_PORT=${BABELFISH_TDS_PORT:-1433}
+      # Backup directory settings
+      - BBF_DOCKER_BACKUPS=/var/lib/babelfish/bbf_backups
+      - BBF_WINDOWS_BACKUPS=/home/postgres/bbf_backups
+      - BBF_HOST_BACKUP_PATH=/mnt/c/Users/rmosw/bbf_backups
+      - TARGET_PGHOST=${TARGET_PGHOST:-localhost}
+      # Locale settings
+      - LC_ALL=${LC_ALL:-C}
+      - LANG=${LANG:-C}
+      - LANGUAGE=${LANGUAGE:-C}
     ports:
       # Map container ports to host ports to avoid conflicts
       - "3341:1433"  # Babelfish TDS (SQL Server protocol) - host:container

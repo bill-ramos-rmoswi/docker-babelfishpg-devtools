@@ -9,9 +9,78 @@ Babelfish for PostgreSQL is a collection of [extensions](https://github.com/babe
 
 **WARNING: Make sure to create a database dump to backup your data before installing a new image to prevent risk of data loss when changing images.**
 
+### Linux Development Setup
+
+For Linux development with volume mounting support:
+
+1. **Set up environment configuration:**
+   ```bash
+   ./setup-env.sh
+   ```
+
+2. **Start the container:**
+   ```bash
+   ./start_babelfish.sh
+   ```
+
+3. **Stop the container:**
+   ```bash
+   ./stop_babelfish.sh
+   ```
+
+4. **Reset everything (WARNING - deletes all data):**
+   ```bash
+   ./reset_babelfish.sh
+   ```
+
+### Windows Development Setup
+
+For Windows development, you can still use the batch files:
+
+1. **Set up environment configuration:**
+   ```cmd
+   setup-env.bat
+   ```
+
+2. **Start the container:**
+   ```cmd
+   start_babelfish.bat
+   ```
+
+3. **Stop the container:**
+   ```cmd
+   stop_babelfish.bat
+   ```
+
+### Docker Run (Basic)
+
 To create a new container, run:
 
 `docker run -d -p 1433:1433 jonathanpotts/babelfishpg`
+
+## Configuration
+
+### Consolidated Password Configuration
+
+This setup uses a single password variable (`BABELFISH_PASSWORD`) for both PostgreSQL and admin credentials:
+
+- **PGPASSWORD**: Uses `BABELFISH_PASSWORD` value
+- **ADMIN_PASSWORD**: Uses `BABELFISH_PASSWORD` value  
+- **ADMIN_USERNAME**: Uses `PGUSER` value
+- **ADMIN_DATABASE**: Uses `PGDATABASE` value
+
+This simplifies configuration and ensures consistency across all database connections.
+
+### Volume Mounting
+
+The development setup provides two backup directory options:
+
+1. **Linux-accessible directory**: `$HOME/bbf_backups` → `/home/postgres/bbf_backups`
+2. **Docker named volume**: `babelfish-backups` → `/var/lib/babelfish/bbf_backups`
+
+The restore script automatically discovers backup files using this priority order.
+
+**Windows users**: The Windows batch files map `C:\Users\%USERNAME%\bbf_backups` to the container.
 
 ### Example Data
 
